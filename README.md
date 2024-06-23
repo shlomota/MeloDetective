@@ -24,7 +24,7 @@ CarleBot is a tool for detecting Carlebach tunes in audio recordings. It leverag
     - The MIDI file is split into overlapping chunks to facilitate detailed analysis. Each chunk is normalized to make it key-agnostic, allowing for more robust matching.
 
 4. **Find Matches with DTW**:
-    - **Dynamic Time Warping (DTW)**: CarleBot uses DTW to compare the query MIDI chunks with the reference library. DTW is an algorithm used to measure similarity between two time series sequences, which can vary in speed. This makes it ideal for matching melodies that might have tempo variations.
+    - **Dynamic Time Warping (DTW)**: CarleBot uses and adaptation DTW to compare the query MIDI chunks with the reference library. DTW is an algorithm used to measure similarity between two time series sequences, which can vary in speed. This makes it ideal for matching melodies that might have tempo variations.
 
 ## High-Level View
 
@@ -43,7 +43,6 @@ CarleBot is a tool for detecting Carlebach tunes in audio recordings. It leverag
 - **audio_to_midi_melodia**: Directory containing scripts for running the Melodia algorithm (Python 2 required).
 - **find_midi_matches_library.py**: Script for matching MIDI files using the library.
 - **data/**: Directory for storing sample queries, library files, and metadata.
-- **logs/**: Directory for storing log files.
 - **utils.py**: Utility functions used across the project.
 - **requirements.txt**: Dependencies required for running CarleBot.
 - **youtube_search.py**: Script for fetching metadata and downloading YouTube audio.
