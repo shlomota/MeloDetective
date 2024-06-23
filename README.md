@@ -9,7 +9,7 @@ Check out the live demo of MeloDetective at [carlebot.us](http://carlebot.us).
 
 ## Overview
 
-MeloDetective is a tool for detecting tunes in audio recordings. It leverages advanced audio processing algorithms and techniques to analyze and match melodies. This project uses a combination of Demucs, the Melodia algorithm, and Dynamic Time Warping (DTW) to achieve accurate results.
+MeloDetective is a tool for locating tunes in audio recordings. It leverages advanced audio processing algorithms and techniques to analyze and match melodies. This project uses a combination of Demucs, the Melodia algorithm, and Dynamic Time Warping (DTW) to achieve accurate results.
 
 ## How It Works
 
