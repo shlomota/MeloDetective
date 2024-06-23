@@ -1,10 +1,9 @@
 # MeloDetective: Tracing Origins Of Tunes
 
-![Screenshot](https://github.com/shlomota/CarleBot/assets/73965390/1ae9e555-bc2e-4082-963c-8ab646d6311c)
-
 ## Demo
 
 Check out the live demo of MeloDetective at [carlebot.us](http://carlebot.us).
+![Screenshot](https://github.com/shlomota/CarleBot/assets/73965390/17536b40-8fee-462c-b6da-7dc610193e61)
 
 ## Overview
 
