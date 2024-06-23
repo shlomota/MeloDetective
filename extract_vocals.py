@@ -3,7 +3,7 @@ import subprocess
 import multiprocessing
 
 # Directory containing the MP3 files
-directory = "downloaded_tracks"
+directory = "SongDetector/data/library"
 
 # Get the number of CPU cores
 num_cores = multiprocessing.cpu_count()
@@ -17,3 +17,4 @@ for filename in os.listdir(directory):
         # Run the Demucs command for each file
         command = f"python3 -m demucs --two-stems=vocals -d cpu -j {num_cores} \"{file_path}\""
         subprocess.run(command, shell=True)
+
