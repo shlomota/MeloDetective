@@ -1,4 +1,4 @@
-# CarleBot: A Carlebach Tune Detector
+# MeloDetective: Tracing Origins Of Tunes
 ![Screenshot](https://github.com/shlomota/CarleBot/assets/73965390/1ae9e555-bc2e-4082-963c-8ab646d6311c)
 
 ## Demo
@@ -7,7 +7,7 @@ Check out the live demo of CarleBot at [carlebot.us](http://carlebot.us).
 
 ## Overview
 
-CarleBot is a tool for detecting Carlebach tunes in audio recordings. It leverages advanced audio processing algorithms and techniques to analyze and match melodies. This project uses a combination of Demucs, the Melodia algorithm, and Dynamic Time Warping (DTW) to achieve accurate results.
+MeloDetective is a tool for detecting Carlebach tunes in audio recordings. It leverages advanced audio processing algorithms and techniques to analyze and match melodies. This project uses a combination of Demucs, the Melodia algorithm, and Dynamic Time Warping (DTW) to achieve accurate results.
 
 ## How It Works
 
