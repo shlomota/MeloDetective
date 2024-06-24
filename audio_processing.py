@@ -18,7 +18,7 @@ def sanitize_filename(filename):
 
 def convert_to_midi(audio_file, midi_file):
     cmd = [
-        "python2", 
+        "/usr/local/bin/python2", 
         "audio_to_midi_melodia/audio_to_midi_melodia.py",
         audio_file,
         midi_file,
@@ -51,7 +51,7 @@ def process_audio(audio_file_path):
         all_chunks, all_start_times, track_names = load_chunks_from_directory(MIDIS_DIR)
 
         # Find best matches
-        st.info("Finding the best matches using DTW...")
+        st.info("Finding the best matches...")
         top_matches = best_matches(query_pitches, all_chunks, all_start_times, track_names=track_names, top_n=3)
 
         return top_matches

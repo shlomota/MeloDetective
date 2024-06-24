@@ -21,18 +21,6 @@ logger = logging.getLogger(__name__)
 CHUNK_LENGTH = 20  # seconds
 OVERLAP = 18  # seconds
 
-def process_directory(input_dir, output_dir):
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-
-    print("Converting MP3 files to MIDI files...")
-    for root, _, files in os.walk(input_dir):
-        for file in files:
-            if file.endswith('.mp3'):
-                mp3_path = os.path.join(root, file)
-                midi_path = os.path.join(output_dir, os.path.splitext(file)[0] + '.mid')
-                generate_midi(mp3_path, midi_path)
-
 def load_chunks_from_directory(midi_dir):
     all_chunks = []
     all_start_times = []
@@ -49,6 +37,7 @@ def load_chunks_from_directory(midi_dir):
                 all_start_times.extend(start_times)
                 track_names.extend([track_name] * len(chunks))
     return all_chunks, all_start_times, track_names
+
 
 if __name__ == "__main__":
     #input_dir = '/content/drive/MyDrive/demucs_separated/htdemucs/'
