@@ -6,7 +6,7 @@ import logging
 import subprocess
 import streamlit as st
 from audio_processing import extract_vocals, convert_to_midi, split_midi, midi_to_pitches_and_times, process_audio, sanitize_filename, extract_midi_chunk, save_midi_chunk
-from youtube_search import fetch_metadata_and_download
+from youtube_search import fetch_metadata_and_download, search_youtube
 from download_utils import download_button
 from consts import SAMPLE_QUERIES_DIR, LIBRARY_DIR, MIDIS_DIR, METADATA_DIR, LOG_DIR, CHUNKS_DIR
 
