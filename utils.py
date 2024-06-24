@@ -9,6 +9,7 @@ from audio_processing import extract_vocals, convert_to_midi, split_midi, midi_t
 from youtube_search import fetch_metadata_and_download, search_youtube
 from download_utils import download_button
 from consts import SAMPLE_QUERIES_DIR, LIBRARY_DIR, MIDIS_DIR, METADATA_DIR, LOG_DIR, CHUNKS_DIR
+import yt_dlp
 
 def setup_logger(name, log_file, level=logging.INFO):
     handler = logging.FileHandler(log_file)
