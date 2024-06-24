@@ -9,12 +9,8 @@ from st_audiorec import st_audiorec
 from youtube_search import fetch_metadata_and_download, search_youtube
 from audio_processing import trim_audio, process_audio, extract_vocals, convert_to_midi, is_in_library
 from utils import setup_logger, display_results, process_and_add_to_library
-
-SAMPLE_QUERIES_DIR = "data/sample_queries"
-LIBRARY_DIR = "data/library"
-MIDIS_DIR = "data/midis"
-METADATA_DIR = "data/metadata"
-LOG_DIR = "logs"
+from download_utils import download_button
+from consts import SAMPLE_QUERIES_DIR, LIBRARY_DIR, MIDIS_DIR, METADATA_DIR, LOG_DIR
 
 # Ensure all required directories exist
 required_dirs = [LIBRARY_DIR, MIDIS_DIR, METADATA_DIR, LOG_DIR]
@@ -34,15 +30,22 @@ def get_sorted_files_by_mod_time(directory):
 def remove_file_extension(filename):
     return os.path.splitext(filename)[0]
 
+def load_sample_queries():
+    sample_queries = get_sorted_files_by_mod_time(SAMPLE_QUERIES_DIR)
+    sample_queries_display = ["Select your query"] + [remove_file_extension(file) for file in sample_queries]
+    return sample_queries, sample_queries_display
+
 def main():
     st.title("CarleBot: A Carlebach Tune Detector")
 
-    tabs = st.tabs(["Use a Sample", "Record", "Upload a Recording", "Add to Library"])
+    # Create tabs for different options
+    musical_note = "\U0001F3B5"
+    microphone = "\U0001F3A4"
+    tab1, tab2, tab3, tab4 = st.tabs(["Use a Sample Query", f"{musical_note}Sing/Hum{microphone}", "Upload Recording", "Add YouTube Link to Library"])
 
-    with tabs[0]:
+    with tab1:
         st.write("Select a sample query:")
-        sample_queries = get_sorted_files_by_mod_time(SAMPLE_QUERIES_DIR)
-        sample_queries_display = ["Select your query"] + [remove_file_extension(file) for file in sample_queries]
+        sample_queries, sample_queries_display = load_sample_queries()
 
         selected_query = st.selectbox("Select a sample query", sample_queries_display)
 
@@ -61,13 +64,13 @@ def main():
                 st.audio(buffer.getvalue(), format="audio/wav")
                 
                 # Process the audio
-                top_matches = process_audio(query_path)
+                top_matches, query_midi_path = process_audio(query_path)
                 if top_matches:
-                    display_results(top_matches, search_fallback=True)
+                    display_results(top_matches, query_midi_path, search_fallback=True)
             except Exception as e:
                 st.error(f"Error processing sample query: {e}")
 
-    with tabs[1]:
+    with tab2:
         st.write("Record 20 seconds of audio directly:")
         st.markdown(
             """
@@ -79,7 +82,6 @@ def main():
             """, 
             unsafe_allow_html=True
         )
-
         st.markdown("<span class='small-font'>***Note:*** *could take a minute to process, on mobile devices you may need to try twice*</span>", unsafe_allow_html=True)
 
         # Record audio
@@ -89,21 +91,21 @@ def main():
         if wav_audio_data is not None:
             start_time = time.time()
             st.write("Recording and processing the file...")
-
+        
             with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp_file:
                 tmp_file.write(wav_audio_data)
                 tmp_file_path = tmp_file.name
-
+        
             st.write(f"Saved recorded file in {time.time() - start_time:.2f} seconds.")
             st.audio(wav_audio_data, format="audio/wav")
             
             start_time = time.time()
-            top_matches = process_audio(tmp_file_path)
+            top_matches, query_midi_path = process_audio(tmp_file_path)
             if top_matches:
-                display_results(top_matches, search_fallback=True)
+                display_results(top_matches, query_midi_path, search_fallback=True)
             st.write(f"Completed audio processing in {time.time() - start_time:.2f} seconds.")
 
-    with tabs[2]:
+    with tab3:
         st.write("Upload your audio recording (first 20 seconds will be used)")
         audio_file = st.file_uploader("Choose an audio file", type=['wav', 'mp3', 'ogg'])
 
@@ -133,9 +135,9 @@ def main():
 
                 # Process the audio
                 start_time = time.time()
-                top_matches = process_audio(tmp_file_path)
+                top_matches, query_midi_path = process_audio(tmp_file_path)
                 if top_matches:
-                    display_results(top_matches, search_fallback=True)
+                    display_results(top_matches, query_midi_path, search_fallback=True)
                 st.write(f"Completed audio processing in {time.time() - start_time:.2f} seconds.")
             except Exception as e:
                 st.error(f"Error processing audio file: {e}")
@@ -143,7 +145,7 @@ def main():
                 # Clean up the temporary file
                 os.unlink(tmp_file_path)
 
-    with tabs[3]:
+    with tab4:
         st.write("Add a YouTube link (song or playlist) to the library:")
         youtube_url = st.text_input("YouTube URL")
         if st.button("Add to Library"):
@@ -162,7 +164,7 @@ def main():
         """,
         unsafe_allow_html=True
     )
-
+   
 if __name__ == "__main__":
     main()
 

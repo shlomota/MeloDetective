@@ -8,4 +8,4 @@ librosa
 streamlit
 pydub
 streamlit-audiorec
-
+midiutil

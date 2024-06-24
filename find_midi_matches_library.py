@@ -24,11 +24,12 @@ OVERLAP = 18  # seconds
 def load_chunks_from_directory(midi_dir):
     all_chunks = []
     all_start_times = []
-    print("Chunking reference MIDI files...")
+    logging.info("Chunking reference MIDI files...")
     track_names = []
     for root, _, files in os.walk(midi_dir):
         for file in files:
             if file.endswith('.mid'):
+                logging.info(file)
                 midi_path = os.path.join(root, file)
                 track_name = os.path.splitext(file)[0]
                 reference_pitches, reference_times = midi_to_pitches_and_times(midi_path)
@@ -36,6 +37,11 @@ def load_chunks_from_directory(midi_dir):
                 all_chunks.extend(chunks)
                 all_start_times.extend(start_times)
                 track_names.extend([track_name] * len(chunks))
+                logging.info(file)
+            logging.info(file)
+    logging.info(track_names)
+    logging.info(all_start_times)
+    logging.info(track_names)
     return all_chunks, all_start_times, track_names
 
 
