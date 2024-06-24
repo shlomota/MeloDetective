@@ -85,6 +85,7 @@ def display_results(top_matches, query_midi_path, search_fallback=False):
             chunk = extract_midi_chunk(midi_path, start_time)
             if chunk:
                 chunk_path = os.path.join(CHUNKS_DIR, f"{track}_chunk.mid")
+                #download chunk option not working yet
                 save_midi_chunk(chunk, chunk_path)
                 midi_download_str = download_button(open(chunk_path, "rb").read(), f"{track}_chunk.mid", "Download Result MIDI Chunk")
                 st.markdown(midi_download_str, unsafe_allow_html=True)

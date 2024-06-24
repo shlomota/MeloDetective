@@ -1,4 +1,5 @@
 import subprocess
+import logging
 import tempfile
 from pydub import AudioSegment
 import os
@@ -6,6 +7,7 @@ import hashlib
 import re
 from find_midi_matches_library import best_matches, midi_to_pitches_and_times, load_chunks_from_directory
 from mido import MidiFile, MidiTrack, Message
+import mido
 import streamlit as st
 
 LIBRARY_DIR = "data/library"
@@ -26,8 +28,12 @@ def convert_to_midi(audio_file, midi_file):
         "--smooth", "0.25",
         "--minduration", "0.1"
     ]
+    env = os.environ.copy()
+    env.pop('PYTHONPATH', None)
+
     print(f"Running command: {' '.join(cmd)}")  # Debugging line
-    subprocess.run(cmd, check=True)
+    subprocess.run(cmd, check=True, env=env)
+    #subprocess.run(cmd, check=True)
 
 def trim_audio(audio_segment, duration_ms=20000):
     """Trim the audio to the specified duration in milliseconds."""
@@ -104,6 +110,39 @@ def extract_midi_chunk(midi_file_path, start_time, duration=20):
                 current_time += msg.time
                 if start_time <= current_time <= start_time + duration:
                     new_track.append(msg)
+            chunk.tracks.append(new_track)
+        return chunk
+    except Exception as e:
+        print(f"Error extracting MIDI chunk: {e}")
+        return None
+
+def extract_midi_chunk(midi_file_path, start_time, duration=20):
+    try:
+        midi = MidiFile(midi_file_path)
+        chunk = MidiFile()
+
+        # Get the ticks per beat from the MIDI file
+        ticks_per_beat = midi.ticks_per_beat
+
+        # Default tempo is 500000 microseconds per beat if not specified
+        tempo = 500000
+
+        for i, track in enumerate(midi.tracks):
+            new_track = MidiTrack()
+            current_time = 0
+            for msg in track:
+                if msg.type == 'set_tempo':
+                    tempo = msg.tempo
+
+                # Convert ticks to seconds
+                time_in_seconds = mido.tick2second(msg.time, ticks_per_beat, tempo)
+                current_time += time_in_seconds
+
+                logging.info(current_time)
+                if start_time <= current_time <= start_time + duration:
+                    new_track.append(msg)
+                    logging.info(msg)
+
             chunk.tracks.append(new_track)
         return chunk
     except Exception as e:

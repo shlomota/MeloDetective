@@ -29,7 +29,6 @@ def load_chunks_from_directory(midi_dir):
     for root, _, files in os.walk(midi_dir):
         for file in files:
             if file.endswith('.mid'):
-                logging.info(file)
                 midi_path = os.path.join(root, file)
                 track_name = os.path.splitext(file)[0]
                 reference_pitches, reference_times = midi_to_pitches_and_times(midi_path)
