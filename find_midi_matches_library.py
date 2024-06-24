@@ -37,11 +37,6 @@ def load_chunks_from_directory(midi_dir):
                 all_chunks.extend(chunks)
                 all_start_times.extend(start_times)
                 track_names.extend([track_name] * len(chunks))
-                logging.info(file)
-            logging.info(file)
-    logging.info(track_names)
-    logging.info(all_start_times)
-    logging.info(track_names)
     return all_chunks, all_start_times, track_names
 
 
