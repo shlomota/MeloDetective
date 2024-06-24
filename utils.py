@@ -82,9 +82,7 @@ def display_results(top_matches, query_midi_path, search_fallback=False):
             st.write(f"Score: {score:.2f}, Start time: {start_time:.2f}, Shift: {shift} semitones, Median difference: {median_diff_semitones} semitones")
             
             midi_path = os.path.join(MIDIS_DIR, f"{track}.mid")
-            st.write(f"Processing MIDI path: {midi_path}")
             chunk = extract_midi_chunk(midi_path, start_time)
-            st.write(f"Chunk result: {chunk}")
             if chunk:
                 chunk_path = os.path.join(CHUNKS_DIR, f"{track}_chunk.mid")
                 save_midi_chunk(chunk, chunk_path)
