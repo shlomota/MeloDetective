@@ -95,7 +95,12 @@ def display_results(top_matches, query_midi_path, search_fallback=False):
         else:
             if search_fallback:
                 st.write(f"No metadata found for {track}, searching YouTube (Result link may not be correct)...")
-                video_info = search_youtube(track)
+                qtrack = track
+                if len(track.split()) < 4:
+                    qtrack = track.strip() + " Carlebach"
+                    query_hash = hashlib.md5(qtrack.encode()).hexdigest()
+                    print("updated hash: %s" % (query_hash))
+                video_info = search_youtube(qtrack)
                 if video_info:
                     video_url = video_info['webpage_url']
                     thumbnail_url = video_info['thumbnail']
