@@ -146,7 +146,6 @@ def extract_midi_chunk(midi_file_path, start_time, duration=20):
                 time_in_seconds = mido.tick2second(msg.time, ticks_per_beat, tempo)
                 current_time += time_in_seconds
 
-                logging.info(current_time)
                 if start_time <= current_time <= start_time + duration:
                     new_track.append(msg)
 
