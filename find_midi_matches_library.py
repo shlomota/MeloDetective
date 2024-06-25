@@ -2,6 +2,7 @@ import os
 import mido
 import numpy as np
 from match_midi_agnostic import midi_to_pitches_and_times, best_matches, format_time, split_midi
+import streamlit as st
 #from generate_midi import generate_midi
 
 import logging
@@ -36,6 +37,31 @@ def load_chunks_from_directory(midi_dir):
                 all_chunks.extend(chunks)
                 all_start_times.extend(start_times)
                 track_names.extend([track_name] * len(chunks))
+    return all_chunks, all_start_times, track_names
+
+
+MIN_NOTES = 20  # Minimum number of notes in a chunk
+
+def load_chunks_from_directory(midi_dir):
+    all_chunks = []
+    all_start_times = []
+    logging.info("Chunking reference MIDI files...")
+    track_names = []
+
+    for root, _, files in os.walk(midi_dir):
+        for file in files:
+            if file.endswith('.mid'):
+                midi_path = os.path.join(root, file)
+                track_name = os.path.splitext(file)[0]
+                reference_pitches, reference_times = midi_to_pitches_and_times(midi_path)
+                chunks, start_times = split_midi(reference_pitches, reference_times, CHUNK_LENGTH, OVERLAP)
+
+                for chunk, start_time in zip(chunks, start_times):
+                    if len(chunk) >= MIN_NOTES:  # Filter out chunks with less than MIN_NOTES
+                        all_chunks.append(chunk)
+                        all_start_times.append(start_time)
+                        track_names.append(track_name)
+
     return all_chunks, all_start_times, track_names
 
 

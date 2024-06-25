@@ -5,7 +5,7 @@ import threading
 import logging
 import subprocess
 import streamlit as st
-from audio_processing import extract_vocals, convert_to_midi, split_midi, midi_to_pitches_and_times, process_audio, sanitize_filename, extract_midi_chunk, save_midi_chunk
+from audio_processing import extract_vocals, convert_to_midi, split_midi, midi_to_pitches_and_times, process_audio, sanitize_filename, extract_midi_chunk, save_midi_chunk, is_in_library
 from youtube_search import fetch_metadata_and_download, search_youtube
 from download_utils import download_button
 from consts import SAMPLE_QUERIES_DIR, LIBRARY_DIR, MIDIS_DIR, METADATA_DIR, LOG_DIR, CHUNKS_DIR
@@ -94,7 +94,7 @@ def display_results(top_matches, query_midi_path, search_fallback=False):
                 st.write(f"No chunk extracted for track: {track}")
         else:
             if search_fallback:
-                st.write(f"No metadata found for {track}, searching YouTube...")
+                st.write(f"No metadata found for {track}, searching YouTube (Result link may not be correct)...")
                 video_info = search_youtube(track)
                 if video_info:
                     video_url = video_info['webpage_url']
@@ -104,11 +104,9 @@ def display_results(top_matches, query_midi_path, search_fallback=False):
                         continue
                     thumbnail_file = f"data/metadata/{query_hash}.jpg"
                     response = requests.get(thumbnail_url)
+
                     with open(thumbnail_file, 'wb') as f:
                         f.write(response.content)
-                    metadata_file = os.path.join(METADATA_DIR, f"{query_hash}.txt")
-                    with open(metadata_file, 'w') as f:
-                        f.write(video_url)
                     youtube_url = f"{video_url}&t={int(start_time)}s"
                     st.markdown(f"**Match {i+1}:** [{track}]({youtube_url})")
                     st.image(thumbnail_file, width=120)

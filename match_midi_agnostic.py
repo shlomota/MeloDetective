@@ -1,10 +1,13 @@
 import mido
+import streamlit as st
 import numpy as np
 from scipy.spatial.distance import cdist
 from fastdtw import fastdtw
 from tqdm import tqdm
 from multiprocessing import Pool, cpu_count
 from functools import partial
+import logging
+import time
 
 def midi_to_pitches_and_times(midi_file):
     midi = mido.MidiFile(midi_file)
@@ -36,7 +39,7 @@ def normalize_pitch_sequence(pitches, shift):
     normalized_pitches = pitches - median_pitch + shift
     return normalized_pitches
 
-def weighted_dtw(query_pitches, reference_chunk, use_weights=True, reward_factor=2.0):
+def weighted_dtw(query_pitches, reference_chunk, use_weights=True, reward_factor=5.0):
     # Calculate note duration weights
     def calculate_weights(pitches):
         change_points = np.concatenate(([0], np.where(np.diff(pitches) != 0)[0] + 1, [len(pitches)]))
@@ -58,13 +61,14 @@ def weighted_dtw(query_pitches, reference_chunk, use_weights=True, reward_factor
         for p in path:
             pitch_diff = (query_pitches[p[0]] - reference_chunk[p[1]]) ** 2
             weight_sum = query_weights[p[0]] + reference_weights[p[1]]
-            if use_weights:
+            if False and use_weights:
                 weighted_distance += pitch_diff * weight_sum
             else:
                 weighted_distance += pitch_diff
 
             # Positive reward for matching long notes
             if query_pitches[p[0]] == reference_chunk[p[1]]:
+                #weighted_distance -= reward_factor * ((weight_sum / 2) ** 0.5)
                 weighted_distance -= reward_factor * weight_sum
 
     except IndexError as e:
@@ -100,8 +104,16 @@ def best_matches(query_pitches, reference_chunks, start_times, track_names, top_
 
     process_chunk_partial = partial(process_chunk, query_pitches=query_pitches, semitone_range=semitone_range)
 
-    with Pool(processes=cpu_count()) as pool:
+    start = time.time()
+    num_processes = cpu_count()
+    logging.info("finding matches with %s processes" % (num_processes))
+
+    with Pool(processes=num_processes) as pool:
         results = pool.map(process_chunk_partial, chunk_data)
+
+    logging.info("found matches with %s processes" % (num_processes))
+    end = time.time()
+    st.text("%s" % (end - start))
 
     scores = [result for result in results if result is not None]
     scores.sort(key=lambda x: x[0])

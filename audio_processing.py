@@ -14,9 +14,17 @@ LIBRARY_DIR = "data/library"
 MIDIS_DIR = "data/midis"
 METADATA_DIR = "data/metadata"
 
+    
 def sanitize_filename(filename):
-    """Sanitize the filename by replacing problematic characters."""
-    return re.sub(r'[\\/*?:"<>|]', "_", filename)
+    """Sanitize the filename by replacing problematic characters and ensure it doesn't start with an underscore."""
+    # Replace problematic characters including non-standard quotation marks
+    result = re.sub(r'[\\/*?:"<>|＂]', "_", filename)
+
+    # Ensure filename doesn't start with an underscore
+    if result.startswith("_"):
+        result = result[1:]
+
+    return result
 
 def convert_to_midi(audio_file, midi_file):
     cmd = [
@@ -141,7 +149,6 @@ def extract_midi_chunk(midi_file_path, start_time, duration=20):
                 logging.info(current_time)
                 if start_time <= current_time <= start_time + duration:
                     new_track.append(msg)
-                    logging.info(msg)
 
             chunk.tracks.append(new_track)
         return chunk

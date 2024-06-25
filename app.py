@@ -82,7 +82,7 @@ def main():
             """, 
             unsafe_allow_html=True
         )
-        st.markdown("<span class='small-font'>***Note:*** *could take a minute to process, on mobile devices you may need to try twice*</span>", unsafe_allow_html=True)
+        st.markdown("<span class='small-font'>***Note:*** *could take a minute to process, on mobile devices you may need to try start and stop twice*</span>", unsafe_allow_html=True)
 
         # Record audio
         wav_audio_data = st_audiorec()
@@ -103,7 +103,6 @@ def main():
             top_matches, query_midi_path = process_audio(tmp_file_path)
             if top_matches:
                 display_results(top_matches, query_midi_path, search_fallback=True)
-            st.write(f"Completed audio processing in {time.time() - start_time:.2f} seconds.")
 
     with tab3:
         st.write("Upload your audio recording (first 20 seconds will be used)")
