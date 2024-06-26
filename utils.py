@@ -96,7 +96,6 @@ def display_results(top_matches, query_midi_path, search_fallback=False):
             if search_fallback:
                 st.write(f"No metadata found for {track}, searching YouTube (Result link may not be correct)...")
                 qtrack = track
-                logging.info(track, len(track.split()))
                 if len(track.split()) < 4:
                     qtrack = track.strip() + " Carlebach"
                     query_hash = hashlib.md5(qtrack.encode()).hexdigest()
@@ -113,6 +112,7 @@ def display_results(top_matches, query_midi_path, search_fallback=False):
 
                     with open(thumbnail_file, 'wb') as f:
                         f.write(response.content)
+
                     youtube_url = f"{video_url}&t={int(start_time)}s"
                     st.markdown(f"**Match {i+1}:** [{track}]({youtube_url})")
                     st.image(thumbnail_file, width=120)
