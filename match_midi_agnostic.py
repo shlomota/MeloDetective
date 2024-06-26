@@ -111,7 +111,8 @@ def best_matches_cosine(query_pitches, reference_chunks, start_times, track_name
     query_hist = calculate_histogram(normalized_query_pitches)
 
     chunk_data = list(zip(range(len(reference_chunks)), reference_chunks, start_times, track_names))
-    process_chunk_partial = partial(process_chunk_cosine, query_hist=query_hist, semitone_range=range(-2, 3))
+    #process_chunk_partial = partial(process_chunk_cosine, query_hist=query_hist, semitone_range=range(-2, 3))
+    process_chunk_partial = partial(process_chunk_cosine, query_hist=query_hist, semitone_range=range(-1, 2))
 
     start = time.time()
     num_processes = cpu_count()
@@ -147,7 +148,8 @@ def process_chunk_dtw(chunk_data, query_pitches, reference_chunks):
         median_diff_semitones = int(reference_median - original_median)
 
         best_score = float('inf')
-        for shift in range(-2, 3):
+        #for shift in range(-2, 3):
+        for shift in range(-1, 2):
             normalized_query = normalize_pitch_sequence(query_pitches, shift)
             distance = weighted_dtw(normalized_query, normalized_chunk)
             if distance < best_score:
@@ -170,12 +172,12 @@ def best_matches(query_pitches, reference_chunks, start_times, track_names, top_
     process_chunk_partial = partial(process_chunk_dtw, query_pitches=query_pitches, reference_chunks=reference_chunks)
 
     final_results = [process_chunk_partial(match) for match in top_cosine_matches]
+    #with Pool(processes=2) as pool:
+    #    final_results = pool.map(process_chunk_partial, top_cosine_matches)
     end = time.time()
     if DEBUG:
         st.text("DTW took %s seconds" % (end - start))
 
-    #with Pool(processes=cpu_count()) as pool:
-    #    final_results = pool.map(process_chunk_partial, top_cosine_matches)
 
     final_scores = [result for result in final_results if result is not None]
     final_scores.sort(key=lambda x: x[1])  # Lower DTW score is better
