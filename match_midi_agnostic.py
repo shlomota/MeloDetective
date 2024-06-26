@@ -11,7 +11,7 @@ from fastdtw import fastdtw
 from consts import DEBUG
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levellevel)s - %(message)s')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(level)s - %(message)s')
 
 def midi_to_pitches_and_times(midi_file):
     midi = mido.MidiFile(midi_file)
