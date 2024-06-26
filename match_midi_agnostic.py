@@ -11,7 +11,7 @@ from fastdtw import fastdtw
 from consts import DEBUG
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levellevel)s - %(message)s')
 
 def midi_to_pitches_and_times(midi_file):
     midi = mido.MidiFile(midi_file)
@@ -50,6 +50,13 @@ def calculate_histogram(pitches, bin_range=(-20, 21)):
 def cosine_similarity(hist1, hist2):
     return 1 - cosine(hist1, hist2)
 
+def cosine_similarity_matrix(query_hist, reference_hists):
+    dot_product = np.dot(reference_hists, query_hist)
+    query_norm = np.linalg.norm(query_hist)
+    reference_norms = np.linalg.norm(reference_hists, axis=1)
+    similarities = dot_product / (query_norm * reference_norms)
+    return similarities
+
 def weighted_dtw(query_pitches, reference_chunk, use_weights=True, reward_factor=5.0):
     def calculate_weights(pitches):
         change_points = np.concatenate(([0], np.where(np.diff(pitches) != 0)[0] + 1, [len(pitches)]))
@@ -71,7 +78,7 @@ def weighted_dtw(query_pitches, reference_chunk, use_weights=True, reward_factor
         for p in path:
             pitch_diff = (query_pitches[p[0]] - reference_chunk[p[1]]) ** 2
             weight_sum = query_weights[p[0]] + reference_weights[p[1]]
-            weighted_distance += pitch_diff# * weight_sum
+            weighted_distance += pitch_diff # * weight_sum
 
             if query_pitches[p[0]] == reference_chunk[p[1]]:
                 weighted_distance -= reward_factor * weight_sum
@@ -91,7 +98,7 @@ def process_chunk_cosine(chunk_data, query_hist, semitone_range):
         best_shift = 0
         median_diff_semitones = 0
 
-        for shift in semitone_range:
+        for shift in range(*semitone_range):
             normalized_chunk = normalize_pitch_sequence(chunk, shift)
             chunk_hist = calculate_histogram(normalized_chunk)
             similarity = cosine_similarity(query_hist, chunk_hist)
@@ -106,32 +113,46 @@ def process_chunk_cosine(chunk_data, query_hist, semitone_range):
         logging.error("Error in process_chunk_cosine: %s", traceback.format_exc())
         return None
 
-def best_matches_cosine(query_pitches, reference_chunks, start_times, track_names, top_n=1000):
+def process_chunk_cosine_matrix_batch(query_hist, reference_chunks, chunk_data, start_times, track_names):
+    reference_hists = []
+    for idx, shift in chunk_data:
+        chunk = reference_chunks[idx]
+        if len(chunk) == 0 or np.isnan(chunk).all():
+            continue
+        normalized_chunk = normalize_pitch_sequence(chunk, shift)
+        chunk_hist = calculate_histogram(normalized_chunk)
+        reference_hists.append(chunk_hist)
+    reference_hists = np.array(reference_hists)
+    similarities = cosine_similarity_matrix(query_hist, reference_hists)
+    results = []
+    for ((idx, shift), similarity) in zip(chunk_data, similarities):
+        median_diff_semitones = int(np.median(reference_chunks[idx]) - np.median(query_hist))
+        track_name = track_names[idx]
+        start_time = start_times[idx]
+        results.append((similarity, start_time, shift, median_diff_semitones, track_name, idx))
+    return results
+
+def best_matches_cosine(query_pitches, reference_chunks, start_times, track_names, top_n=100):
+    start = time.time()
     normalized_query_pitches = normalize_pitch_sequence(query_pitches)
     query_hist = calculate_histogram(normalized_query_pitches)
 
-    chunk_data = list(zip(range(len(reference_chunks)), reference_chunks, start_times, track_names))
-    #process_chunk_partial = partial(process_chunk_cosine, query_hist=query_hist, semitone_range=range(-2, 3))
-    process_chunk_partial = partial(process_chunk_cosine, query_hist=query_hist, semitone_range=range(-1, 2))
+    chunk_data = [(idx, shift) for idx in range(len(reference_chunks)) for shift in range(-1, 2)]
+    batch_size = len(chunk_data) // cpu_count()  # Divide work into batches
+    chunk_batches = [chunk_data[i:i + batch_size] for i in range(0, len(chunk_data), batch_size)]
 
-    start = time.time()
-    num_processes = cpu_count()
-    logging.info("Finding matches with %s processes for cosine similarity", num_processes)
+    with Pool(processes=cpu_count()) as pool:
+        results = pool.starmap(process_chunk_cosine_matrix_batch, [(query_hist, reference_chunks, batch, start_times, track_names) for batch in chunk_batches])
 
-    with Pool(processes=num_processes) as pool:
-        results = pool.map(process_chunk_partial, chunk_data)
-
-    logging.info("Found matches with %s processes for cosine similarity", num_processes)
     end = time.time()
     if DEBUG:
         st.text("%s" % (end - start))
+    # Flatten results
+    results = [item for sublist in results for item in sublist]
+    scores = sorted(results, key=lambda x: x[0], reverse=True)  # Higher similarity is better
 
-    scores = [result for result in results if result is not None]
-    scores.sort(key=lambda x: x[0], reverse=True)  # Higher similarity is better
+    return scores[:top_n]
 
-    top_matches = scores[:top_n]
-
-    return top_matches
 
 def process_chunk_dtw(chunk_data, query_pitches, reference_chunks):
     try:
@@ -148,7 +169,6 @@ def process_chunk_dtw(chunk_data, query_pitches, reference_chunks):
         median_diff_semitones = int(reference_median - original_median)
 
         best_score = float('inf')
-        #for shift in range(-2, 3):
         for shift in range(-1, 2):
             normalized_query = normalize_pitch_sequence(query_pitches, shift)
             distance = weighted_dtw(normalized_query, normalized_chunk)
@@ -164,7 +184,7 @@ def process_chunk_dtw(chunk_data, query_pitches, reference_chunks):
 def best_matches(query_pitches, reference_chunks, start_times, track_names, top_n=10):
     # Step 1: Prefilter with Cosine Similarity
     logging.info("Starting prefiltering with cosine similarity...")
-    top_cosine_matches = best_matches_cosine(query_pitches, reference_chunks, start_times, track_names, top_n=1000)
+    top_cosine_matches = best_matches_cosine(query_pitches, reference_chunks, start_times, track_names, top_n=500)
 
     # Step 2: Rerank with DTW
     logging.info("Starting reranking with DTW...")
@@ -172,12 +192,9 @@ def best_matches(query_pitches, reference_chunks, start_times, track_names, top_
     process_chunk_partial = partial(process_chunk_dtw, query_pitches=query_pitches, reference_chunks=reference_chunks)
 
     final_results = [process_chunk_partial(match) for match in top_cosine_matches]
-    #with Pool(processes=2) as pool:
-    #    final_results = pool.map(process_chunk_partial, top_cosine_matches)
     end = time.time()
     if DEBUG:
         st.text("DTW took %s seconds" % (end - start))
-
 
     final_scores = [result for result in final_results if result is not None]
     final_scores.sort(key=lambda x: x[1])  # Lower DTW score is better
