@@ -57,7 +57,7 @@ def cosine_similarity_matrix(query_hist, reference_hists):
     similarities = dot_product / (query_norm * reference_norms)
     return similarities
 
-def weighted_dtw(query_pitches, reference_chunk, use_weights=True, reward_factor=5.0):
+def weighted_dtw(query_pitches, reference_chunk, use_weights=True, reward_factor=2.0):
     def calculate_weights(pitches):
         change_points = np.concatenate(([0], np.where(np.diff(pitches) != 0)[0] + 1, [len(pitches)]))
         weights = np.diff(change_points)
@@ -184,7 +184,7 @@ def process_chunk_dtw(chunk_data, query_pitches, reference_chunks):
 def best_matches(query_pitches, reference_chunks, start_times, track_names, top_n=10):
     # Step 1: Prefilter with Cosine Similarity
     logging.info("Starting prefiltering with cosine similarity...")
-    top_cosine_matches = best_matches_cosine(query_pitches, reference_chunks, start_times, track_names, top_n=500)
+    top_cosine_matches = best_matches_cosine(query_pitches, reference_chunks, start_times, track_names, top_n=1000)
 
     # Step 2: Rerank with DTW
     logging.info("Starting reranking with DTW...")

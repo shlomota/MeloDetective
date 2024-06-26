@@ -19,6 +19,12 @@ for dir_path in required_dirs:
     if not os.path.exists(dir_path):
         os.makedirs(dir_path)
 
+def search_songs(query, songs):
+    return [song for song in songs if query.lower() in song.lower()]
+
+# Assuming songs are the filenames in the library directory
+library_songs = [os.path.splitext(f)[0] for f in os.listdir(MIDIS_DIR) if f.endswith('.mid')]
+
 def get_sorted_files_by_mod_time(directory):
     # Get the list of files and their modification times
     files = [(file, os.path.getmtime(os.path.join(directory, file))) for file in os.listdir(directory)]
@@ -42,7 +48,7 @@ def main():
     # Create tabs for different options
     musical_note = "\U0001F3B5"
     microphone = "\U0001F3A4"
-    tab1, tab2, tab3, tab4 = st.tabs(["Use a Sample Query", f"{musical_note}Sing/Hum{microphone}", "Upload Recording", "Add YouTube Link to Library"])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["Use a Sample Query", f"{musical_note}Sing/Hum{microphone}", "Upload Recording", "Add YouTube Link to Library", "Is My Song in the Database?"])
 
     with tab1:
         st.write("Select a sample query:")
@@ -100,7 +106,6 @@ def main():
                 tmp_file.write(wav_audio_data)
                 tmp_file_path = tmp_file.name
         
-            st.write(f"Saved recorded file in {time.time() - start_time:.2f} seconds.")
             st.audio(wav_audio_data, format="audio/wav")
             
             start_time = time.time()
@@ -121,7 +126,6 @@ def main():
                 tmp_file.write(audio_file.getvalue())
                 tmp_file_path = tmp_file.name
 
-            st.write(f"Uploaded file in {time.time() - start_time:.2f} seconds.")
 
             # Now load the audio from the temporary file
             try:
@@ -134,7 +138,6 @@ def main():
                 audio.export(buffer, format="wav")
                 st.audio(buffer.getvalue(), format="audio/wav")
                 
-                st.write(f"Processed audio in {time.time() - start_time:.2f} seconds.")
 
                 # Process the audio
                 start_time = time.time()
@@ -158,6 +161,14 @@ def main():
             else:
                 st.error("Please enter a valid YouTube URL")
 
+    with tab5:
+        st.write("Search for songs in the database:")
+        query = st.text_input("Enter song title")
+        if query:
+            results = search_songs(query, library_songs)
+            for result in results[:10]:
+                st.write(result)
+                
     # Add footer with hyperlink
     st.markdown(
         """

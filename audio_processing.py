@@ -10,6 +10,7 @@ from find_midi_matches_library import best_matches, midi_to_pitches_and_times, l
 from mido import MidiFile, MidiTrack, Message
 import mido
 import streamlit as st
+from consts import DEBUG
 
 LIBRARY_DIR = "/home/ubuntu/MeloDetective/data/library"
 MIDIS_DIR = "/home/ubuntu/MeloDetective/data/midis"
@@ -70,8 +71,10 @@ def process_audio(audio_file_path):
         st.info("Finding the best matches...")
 
         # Find best matches
-        top_matches = best_matches(query_pitches, all_chunks, all_start_times, track_names=track_names, top_n=3)
-
+        if DEBUG:
+            top_matches = best_matches(query_pitches, all_chunks, all_start_times, track_names=track_names, top_n=10)
+        else:
+            top_matches = best_matches(query_pitches, all_chunks, all_start_times, track_names=track_names, top_n=5)
         return top_matches, midi_file_path
     except Exception as e:
         print(traceback.format_exc())
