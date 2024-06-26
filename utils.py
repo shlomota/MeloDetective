@@ -8,7 +8,10 @@ import streamlit as st
 from audio_processing import extract_vocals, convert_to_midi, split_midi, midi_to_pitches_and_times, process_audio, sanitize_filename, extract_midi_chunk, save_midi_chunk, is_in_library
 from youtube_search import fetch_metadata_and_download, search_youtube
 from download_utils import download_button
-from consts import SAMPLE_QUERIES_DIR, LIBRARY_DIR, MIDIS_DIR, METADATA_DIR, LOG_DIR, CHUNKS_DIR
+from consts import SAMPLE_QUERIES_DIR, LIBRARY_DIR, MIDIS_DIR, METADATA_DIR, LOG_DIR, CHUNKS_DIR, DEBUG
+import numpy as np
+import matplotlib.pyplot as plt
+import tempfile
 import yt_dlp
 
 def setup_logger(name, log_file, level=logging.INFO):
@@ -21,48 +24,24 @@ def setup_logger(name, log_file, level=logging.INFO):
 
     return logger
 
-def fetch_metadata_and_download(query, output_dir):
-    ydl_opts = {
-        'format': 'bestaudio/best',
-        'postprocessors': [{
-            'key': 'FFmpegExtractAudio',
-            'preferredcodec': 'mp3',
-            'preferredquality': '192',
-        }],
-        'outtmpl': f'{output_dir}/%(title)s.%(ext)s',
-    }
+def display_path(path):
+    if path:
+        path_x, path_y = zip(*path)
+        plt.figure(figsize=(10, 5))
+        plt.plot(path_x, path_y, 'o-', markersize=2, linewidth=1)
+        plt.xlabel('Query Sequence Index')
+        plt.ylabel('Reference Sequence Index')
+        plt.title('DTW Path')
+        plt.grid(True)
 
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info_dict = ydl.extract_info(query, download=True)
-        entries = info_dict.get('entries', [info_dict])  # Handle both single video and playlist
-        results = []
+        # Save plot to a temporary file
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmpfile:
+            plt.savefig(tmpfile.name)
+            tmpfile_path = tmpfile.name
 
-        for entry in entries:
-            video_info = entry
-            video_url = video_info['webpage_url']
-            thumbnail_url = video_info['thumbnail']
-            video_title = sanitize_filename(video_info['title'])
-
-            original_filename = os.path.join(output_dir, f"{video_title}.mp3")
-            sanitized_filename = os.path.join(output_dir, f"{video_title}.mp3")
-
-            if os.path.exists(original_filename):
-                os.rename(original_filename, sanitized_filename)
-
-            result = {
-                'title': video_title,
-                'url': video_url,
-                'thumbnail': thumbnail_url
-            }
-
-            query_hash = hashlib.md5(video_url.encode()).hexdigest()
-            metadata_file = os.path.join(METADATA_DIR, f"{query_hash}.txt")
-            with open(metadata_file, 'w') as f:
-                f.write(video_url)
-
-            results.append(result)
-
-        return results
+        # Display the plot in Streamlit
+        st.image(tmpfile_path)
+        plt.close()
 
 def display_results(top_matches, query_midi_path, search_fallback=False):
     st.subheader("Top Matches:")
@@ -70,63 +49,7 @@ def display_results(top_matches, query_midi_path, search_fallback=False):
     st.markdown(download_str, unsafe_allow_html=True)
 
     for i, match in enumerate(top_matches):
-        score, start_time, shift, median_diff_semitones, track = match
-        query_hash = hashlib.md5(track.encode()).hexdigest()
-        metadata_file = os.path.join(METADATA_DIR, f"{query_hash}.txt")
-        if os.path.exists(metadata_file):
-            with open(metadata_file, 'r') as f:
-                video_url = f.read().strip()
-            thumbnail_file = os.path.join(METADATA_DIR, f"{query_hash}.jpg")
-            youtube_url = f"{video_url}&t={int(start_time)}s"
-            st.markdown(f"**Match {i+1}:** [{track}]({youtube_url})")
-            st.image(thumbnail_file, width=120)
-            st.write(f"Score: {score:.2f}, Start time: {start_time:.2f}, Shift: {shift} semitones, Median difference: {median_diff_semitones} semitones")
-            
-            midi_path = os.path.join(MIDIS_DIR, f"{track}.mid")
-            chunk = extract_midi_chunk(midi_path, start_time)
-            if chunk:
-                chunk_path = os.path.join(CHUNKS_DIR, f"{track}_chunk.mid")
-                #download chunk option not working yet
-                save_midi_chunk(chunk, chunk_path)
-                midi_download_str = download_button(open(chunk_path, "rb").read(), f"{track}_chunk.mid", "Download Result MIDI Chunk")
-                st.markdown(midi_download_str, unsafe_allow_html=True)
-            else:
-                st.write(f"No chunk extracted for track: {track}")
-        else:
-            if search_fallback:
-                st.write(f"No metadata found for {track}, searching YouTube (Result link may not be correct)...")
-                qtrack = track
-                if len(track.split()) < 4:
-                    qtrack = track.strip() + " Carlebach"
-                    query_hash = hashlib.md5(qtrack.encode()).hexdigest()
-                    logging.info("updated hash: %s" % (query_hash))
-                video_info = search_youtube(qtrack)
-                if video_info:
-                    video_url = video_info['webpage_url']
-                    thumbnail_url = video_info['thumbnail']
-                    if not thumbnail_url.startswith('http'):
-                        st.write(f"Invalid thumbnail URL: {thumbnail_url}")
-                        continue
-                    thumbnail_file = f"/home/ubuntu/MeloDetective/data/{query_hash}.jpg"
-                    response = requests.get(thumbnail_url)
-
-                    with open(thumbnail_file, 'wb') as f:
-                        f.write(response.content)
-
-                    youtube_url = f"{video_url}&t={int(start_time)}s"
-                    st.markdown(f"**Match {i+1}:** [{track}]({youtube_url})")
-                    st.image(thumbnail_file, width=120)
-                    st.write(f"Score: {score:.2f}, Start time: {start_time:.2f}, Shift: {shift} semitones, Median difference: {median_diff_semitones} semitones")
-                else:
-                    st.write(f"No YouTube results found for {track}")
-
-def display_results(top_matches, query_midi_path, search_fallback=False):
-    st.subheader("Top Matches:")
-    download_str = download_button(open(query_midi_path, "rb").read(), "query.mid", "Download Query MIDI")
-    st.markdown(download_str, unsafe_allow_html=True)
-
-    for i, match in enumerate(top_matches):
-        cosine_similarity_score, dtw_score, start_time, shift, median_diff_semitones, track = match
+        cosine_similarity_score, dtw_score, start_time, shift,path, median_diff_semitones, track = match
         query_hash = hashlib.md5(track.encode()).hexdigest()
         metadata_file = os.path.join(METADATA_DIR, f"{query_hash}.txt")
         if os.path.exists(metadata_file):
@@ -175,6 +98,8 @@ def display_results(top_matches, query_midi_path, search_fallback=False):
                     st.write(f"Cosine Similarity Score: {cosine_similarity_score:.2f}, DTW Score: {dtw_score:.2f}, Start time: {start_time:.2f}, Shift: {shift} semitones, Median difference: {median_diff_semitones} semitones")
                 else:
                     st.write(f"No YouTube results found for {track}")
+        if DEBUG:
+            display_path(path)
 
 def process_and_add_to_library(url):
     def background_process(url, logger):

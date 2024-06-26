@@ -57,36 +57,32 @@ def cosine_similarity_matrix(query_hist, reference_hists):
     similarities = dot_product / (query_norm * reference_norms)
     return similarities
 
-def weighted_dtw(query_pitches, reference_chunk, use_weights=True, reward_factor=2.0):
-    def calculate_weights(pitches):
-        change_points = np.concatenate(([0], np.where(np.diff(pitches) != 0)[0] + 1, [len(pitches)]))
-        weights = np.diff(change_points)
-        expanded_weights = np.repeat(weights, weights)
-        return expanded_weights / expanded_weights.sum() if expanded_weights.sum() != 0 else np.ones(len(pitches))
+def weighted_dtw(query_pitches, reference_chunk, stretch_penalty=0.2, threshold=5):
+    distance, path = fastdtw(query_pitches, reference_chunk, dist=lambda x, y: (x - y) ** 2)
+    total_distance = distance
+    stretch_length = 0
+    path_length = len(path)
 
-    if use_weights:
-        query_weights = calculate_weights(query_pitches)
-        reference_weights = calculate_weights(reference_chunk)
-    else:
-        query_weights = np.ones(len(query_pitches))
-        reference_weights = np.ones(len(reference_chunk))
-
-    try:
-        distance, path = fastdtw(query_pitches, reference_chunk, dist=lambda x, y: (x - y) ** 2)
-
-        weighted_distance = 0
-        for p in path:
-            pitch_diff = (query_pitches[p[0]] - reference_chunk[p[1]]) ** 2
-            weight_sum = query_weights[p[0]] + reference_weights[p[1]]
-            weighted_distance += pitch_diff # * weight_sum
-
-            if query_pitches[p[0]] == reference_chunk[p[1]]:
-                weighted_distance -= reward_factor * weight_sum
-
-    except IndexError as e:
-        return float('inf')
-
-    return weighted_distance
+    for i in range(1, path_length):
+        prev = path[i-1]
+        curr = path[i]
+        if curr[0] == prev[0] or curr[1] == prev[1]:  # Horizontal or vertical step
+            stretch_length += 1
+        else:
+            if stretch_length > 0:
+                # Apply reduced penalty at the start and end of the path
+                if i <= threshold or i >= path_length - threshold:
+                    total_distance += (stretch_length ** 2) * (stretch_penalty / 5)
+                else:
+                    total_distance += (stretch_length ** 2) * stretch_penalty
+                stretch_length = 0
+    if stretch_length > 0:
+        # Apply reduced penalty at the end of the path
+        if path_length - stretch_length <= threshold:
+            total_distance += (stretch_length ** 2) * (stretch_penalty / 2)
+        else:
+            total_distance += (stretch_length ** 2) * stretch_penalty
+    return total_distance, path
 
 def process_chunk_cosine(chunk_data, query_hist, semitone_range):
     try:
@@ -137,7 +133,7 @@ def best_matches_cosine(query_pitches, reference_chunks, start_times, track_name
     normalized_query_pitches = normalize_pitch_sequence(query_pitches)
     query_hist = calculate_histogram(normalized_query_pitches)
 
-    chunk_data = [(idx, shift) for idx in range(len(reference_chunks)) for shift in range(-1, 2)]
+    chunk_data = [(idx, shift) for idx in range(len(reference_chunks)) for shift in range(-2, 3)]
     batch_size = len(chunk_data) // cpu_count()  # Divide work into batches
     chunk_batches = [chunk_data[i:i + batch_size] for i in range(0, len(chunk_data), batch_size)]
 
@@ -169,14 +165,16 @@ def process_chunk_dtw(chunk_data, query_pitches, reference_chunks):
         median_diff_semitones = int(reference_median - original_median)
 
         best_score = float('inf')
+        best_path = None
         for shift in range(-1, 2):
             normalized_query = normalize_pitch_sequence(query_pitches, shift)
-            distance = weighted_dtw(normalized_query, normalized_chunk)
+            distance, path = weighted_dtw(normalized_query, normalized_chunk)
             if distance < best_score:
                 best_score = distance
                 best_shift = shift
+                best_path = path
 
-        return (cosine_similarity_score, best_score, start_time, best_shift, median_diff_semitones, track_name)
+        return (cosine_similarity_score, best_score, start_time, best_shift,best_path, median_diff_semitones, track_name)
     except Exception as e:
         logging.error("Error in process_chunk_dtw: %s", traceback.format_exc())
         return None
@@ -201,7 +199,7 @@ def best_matches(query_pitches, reference_chunks, start_times, track_names, top_
 
     # Ensure unique tracks in final results
     unique_tracks = set()
-    final_scores = [match for match in final_scores if match[5] not in unique_tracks and not unique_tracks.add(match[5])]
+    final_scores = [match for match in final_scores if match[-1] not in unique_tracks and not unique_tracks.add(match[-1])]
 
     logging.info("Final top matches after DTW: %s", final_scores[:top_n])
     return final_scores[:top_n]

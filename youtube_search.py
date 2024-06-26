@@ -2,6 +2,13 @@ import hashlib
 import requests
 import yt_dlp
 import os
+from audio_processing import sanitize_filename
+from consts import *
+import logging
+
+def replace_quotes(filename):
+    # Replace standard quotes with special quotes
+    return filename.replace('"', '＂').replace("'", '＇')
 
 def fetch_metadata_and_download(query, output_dir):
     ydl_opts = {
@@ -23,25 +30,29 @@ def fetch_metadata_and_download(query, output_dir):
             video_info = entry
             video_url = video_info['webpage_url']
             thumbnail_url = video_info['thumbnail']
-            video_title = video_info['title']
+            video_title_orig = video_info['title']
+            video_title = sanitize_filename(video_title_orig)
 
-            # Download the thumbnail image
-            query_hash = hashlib.md5(video_url.encode()).hexdigest()
-            thumbnail_filename = f"/home/ubuntu/MeloDetective/data/meta/home/ubuntu/MeloDetective/data/{query_hash}.jpg"
-            if not os.path.exists("/home/ubuntu/MeloDetective/data/metadata"):
-                os.makedirs("/home/ubuntu/MeloDetective/data/metadata")
-            response = requests.get(thumbnail_url)
-            with open(thumbnail_filename, 'wb') as f:
-                f.write(response.content)
+            original_filename = os.path.join(output_dir, f"{video_title_orig}.mp3")
+            sanitized_filename = os.path.join(output_dir, f"{video_title}.mp3")
 
+            logging.info("Original: %s" % (original_filename))
+            logging.info("Sanitized: %s" % (sanitized_filename))
+            replaced_filename = replace_quotes(original_filename)
+            if os.path.exists(original_filename):
+                logging.info("Renaming file %s to %s" % (original_filename, sanitized_filename))
+                os.rename(original_filename, sanitized_filename)
+            elif os.path.exists(replaced_filename):
+                logging.info("Renaming replaced file %s to %s" % (replaced_filename, sanitized_filename))
+                os.rename(replaced_filename, sanitized_filename)
             result = {
                 'title': video_title,
                 'url': video_url,
-                'thumbnail': thumbnail_filename
+                'thumbnail': thumbnail_url
             }
 
-            # Save metadata
-            metadata_file = os.path.join(f"/home/ubuntu/MeloDetective/data/meta/home/ubuntu/MeloDetective/data/{query_hash}.txt")
+            query_hash = hashlib.md5(video_url.encode()).hexdigest()
+            metadata_file = os.path.join(METADATA_DIR, f"{query_hash}.txt")
             with open(metadata_file, 'w') as f:
                 f.write(video_url)
 
