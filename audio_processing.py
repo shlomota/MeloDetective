@@ -1,4 +1,5 @@
 import subprocess
+import traceback
 import logging
 import tempfile
 from pydub import AudioSegment
@@ -10,9 +11,9 @@ from mido import MidiFile, MidiTrack, Message
 import mido
 import streamlit as st
 
-LIBRARY_DIR = "data/library"
-MIDIS_DIR = "data/midis"
-METADATA_DIR = "data/metadata"
+LIBRARY_DIR = "/home/ubuntu/MeloDetective/data/library"
+MIDIS_DIR = "/home/ubuntu/MeloDetective/data/midis"
+METADATA_DIR = "/home/ubuntu/MeloDetective/data/metadata"
 
     
 def sanitize_filename(filename):
@@ -73,6 +74,7 @@ def process_audio(audio_file_path):
 
         return top_matches, midi_file_path
     except Exception as e:
+        print(traceback.format_exc())
         print(f"Error processing audio file: {e}")
         return None, None
 

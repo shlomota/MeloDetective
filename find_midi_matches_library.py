@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 # Constants
 CHUNK_LENGTH = 20  # seconds
-OVERLAP = 18  # seconds
+OVERLAP = 19  # seconds
 
 def load_chunks_from_directory(midi_dir):
     all_chunks = []

@@ -1,4 +1,5 @@
 import streamlit as st
+import traceback
 import time
 import tempfile
 import io
@@ -10,7 +11,7 @@ from youtube_search import fetch_metadata_and_download, search_youtube
 from audio_processing import trim_audio, process_audio, extract_vocals, convert_to_midi, is_in_library
 from utils import setup_logger, display_results, process_and_add_to_library
 from download_utils import download_button
-from consts import SAMPLE_QUERIES_DIR, LIBRARY_DIR, MIDIS_DIR, METADATA_DIR, LOG_DIR
+from consts import SAMPLE_QUERIES_DIR, LIBRARY_DIR, MIDIS_DIR, METADATA_DIR, LOG_DIR, DEBUG
 
 # Ensure all required directories exist
 required_dirs = [LIBRARY_DIR, MIDIS_DIR, METADATA_DIR, LOG_DIR]
@@ -68,6 +69,9 @@ def main():
                 if top_matches:
                     display_results(top_matches, query_midi_path, search_fallback=True)
             except Exception as e:
+
+                print(traceback.format_exc())
+                print(e)
                 st.error(f"Error processing sample query: {e}")
 
     with tab2:
@@ -139,6 +143,7 @@ def main():
                     display_results(top_matches, query_midi_path, search_fallback=True)
                 st.write(f"Completed audio processing in {time.time() - start_time:.2f} seconds.")
             except Exception as e:
+                print(traceback.format_exc())
                 st.error(f"Error processing audio file: {e}")
             finally:
                 # Clean up the temporary file

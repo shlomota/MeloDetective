@@ -1,13 +1,17 @@
 import mido
 import streamlit as st
 import numpy as np
-from scipy.spatial.distance import cdist
-from fastdtw import fastdtw
-from tqdm import tqdm
+from scipy.spatial.distance import cosine
 from multiprocessing import Pool, cpu_count
 from functools import partial
 import logging
 import time
+import traceback
+from fastdtw import fastdtw
+from consts import DEBUG
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 def midi_to_pitches_and_times(midi_file):
     midi = mido.MidiFile(midi_file)
@@ -34,13 +38,19 @@ def split_midi(pitches, times, chunk_length, overlap):
         start_times.append(start_time)
     return chunks, start_times
 
-def normalize_pitch_sequence(pitches, shift):
+def normalize_pitch_sequence(pitches, shift=0):
     median_pitch = np.median(pitches)
     normalized_pitches = pitches - median_pitch + shift
     return normalized_pitches
 
+def calculate_histogram(pitches, bin_range=(-20, 21)):
+    histogram, _ = np.histogram(pitches, bins=np.arange(bin_range[0], bin_range[1] + 1))
+    return histogram / np.sum(histogram)
+
+def cosine_similarity(hist1, hist2):
+    return 1 - cosine(hist1, hist2)
+
 def weighted_dtw(query_pitches, reference_chunk, use_weights=True, reward_factor=5.0):
-    # Calculate note duration weights
     def calculate_weights(pitches):
         change_points = np.concatenate(([0], np.where(np.diff(pitches) != 0)[0] + 1, [len(pitches)]))
         weights = np.diff(change_points)
@@ -61,14 +71,9 @@ def weighted_dtw(query_pitches, reference_chunk, use_weights=True, reward_factor
         for p in path:
             pitch_diff = (query_pitches[p[0]] - reference_chunk[p[1]]) ** 2
             weight_sum = query_weights[p[0]] + reference_weights[p[1]]
-            if False and use_weights:
-                weighted_distance += pitch_diff * weight_sum
-            else:
-                weighted_distance += pitch_diff
+            weighted_distance += pitch_diff# * weight_sum
 
-            # Positive reward for matching long notes
             if query_pitches[p[0]] == reference_chunk[p[1]]:
-                #weighted_distance -= reward_factor * ((weight_sum / 2) ** 0.5)
                 weighted_distance -= reward_factor * weight_sum
 
     except IndexError as e:
@@ -76,58 +81,111 @@ def weighted_dtw(query_pitches, reference_chunk, use_weights=True, reward_factor
 
     return weighted_distance
 
-def process_chunk(chunk_data, query_pitches, semitone_range):
-    idx, chunk, start_time, track_name = chunk_data
-    if len(chunk) == 0 or np.isnan(chunk).all():
+def process_chunk_cosine(chunk_data, query_hist, semitone_range):
+    try:
+        idx, chunk, start_time, track_name = chunk_data
+        if len(chunk) == 0 or np.isnan(chunk).all():
+            return None
+
+        best_similarity = -1
+        best_shift = 0
+        median_diff_semitones = 0
+
+        for shift in semitone_range:
+            normalized_chunk = normalize_pitch_sequence(chunk, shift)
+            chunk_hist = calculate_histogram(normalized_chunk)
+            similarity = cosine_similarity(query_hist, chunk_hist)
+
+            if similarity > best_similarity:
+                best_similarity = similarity
+                best_shift = shift
+                median_diff_semitones = int(np.median(chunk) - np.median(query_hist))
+
+        return (best_similarity, start_time, best_shift, median_diff_semitones, track_name, idx)
+    except Exception as e:
+        logging.error("Error in process_chunk_cosine: %s", traceback.format_exc())
         return None
-    normalized_chunk = normalize_pitch_sequence(chunk, 0)
-    reference_median = np.median(chunk)
-    if np.isnan(reference_median):
-        return None
-    original_median = np.median(query_pitches)
-    median_diff_semitones = int(reference_median - original_median)
 
-    best_score = float('inf')
-    best_shift = 0
-    for shift in semitone_range:
-        normalized_query = normalize_pitch_sequence(query_pitches, shift)
-        distance = weighted_dtw(normalized_query, normalized_chunk)
-        if distance < best_score:
-            best_score = distance
-            best_shift = shift
+def best_matches_cosine(query_pitches, reference_chunks, start_times, track_names, top_n=1000):
+    normalized_query_pitches = normalize_pitch_sequence(query_pitches)
+    query_hist = calculate_histogram(normalized_query_pitches)
 
-    return (best_score, start_time, best_shift, median_diff_semitones, track_name)
-
-def best_matches(query_pitches, reference_chunks, start_times, track_names, top_n=10):
-    semitone_range = range(-1, 2)
-    chunk_data = zip(range(len(reference_chunks)), reference_chunks, start_times, track_names)
-
-    process_chunk_partial = partial(process_chunk, query_pitches=query_pitches, semitone_range=semitone_range)
+    chunk_data = list(zip(range(len(reference_chunks)), reference_chunks, start_times, track_names))
+    process_chunk_partial = partial(process_chunk_cosine, query_hist=query_hist, semitone_range=range(-2, 3))
 
     start = time.time()
     num_processes = cpu_count()
-    logging.info("finding matches with %s processes" % (num_processes))
+    logging.info("Finding matches with %s processes for cosine similarity", num_processes)
 
     with Pool(processes=num_processes) as pool:
         results = pool.map(process_chunk_partial, chunk_data)
 
-    logging.info("found matches with %s processes" % (num_processes))
+    logging.info("Found matches with %s processes for cosine similarity", num_processes)
     end = time.time()
-    st.text("%s" % (end - start))
+    if DEBUG:
+        st.text("%s" % (end - start))
 
     scores = [result for result in results if result is not None]
-    scores.sort(key=lambda x: x[0])
+    scores.sort(key=lambda x: x[0], reverse=True)  # Higher similarity is better
 
-    unique_matches = []
-    seen_tracks = set()
-    for match in scores:
-        if match[4] not in seen_tracks:
-            unique_matches.append(match)
-            seen_tracks.add(match[4])
-        if len(unique_matches) == top_n:
-            break
+    top_matches = scores[:top_n]
 
-    return unique_matches
+    return top_matches
+
+def process_chunk_dtw(chunk_data, query_pitches, reference_chunks):
+    try:
+        cosine_similarity_score, start_time, best_shift, median_diff_semitones, track_name, idx = chunk_data
+        chunk = reference_chunks[idx]
+        if len(chunk) == 0 or np.isnan(chunk).all():
+            return None
+
+        normalized_chunk = normalize_pitch_sequence(chunk, 0)
+        reference_median = np.median(chunk)
+        if np.isnan(reference_median):
+            return None
+        original_median = np.median(query_pitches)
+        median_diff_semitones = int(reference_median - original_median)
+
+        best_score = float('inf')
+        for shift in range(-2, 3):
+            normalized_query = normalize_pitch_sequence(query_pitches, shift)
+            distance = weighted_dtw(normalized_query, normalized_chunk)
+            if distance < best_score:
+                best_score = distance
+                best_shift = shift
+
+        return (cosine_similarity_score, best_score, start_time, best_shift, median_diff_semitones, track_name)
+    except Exception as e:
+        logging.error("Error in process_chunk_dtw: %s", traceback.format_exc())
+        return None
+
+def best_matches(query_pitches, reference_chunks, start_times, track_names, top_n=10):
+    # Step 1: Prefilter with Cosine Similarity
+    logging.info("Starting prefiltering with cosine similarity...")
+    top_cosine_matches = best_matches_cosine(query_pitches, reference_chunks, start_times, track_names, top_n=1000)
+
+    # Step 2: Rerank with DTW
+    logging.info("Starting reranking with DTW...")
+    start = time.time()
+    process_chunk_partial = partial(process_chunk_dtw, query_pitches=query_pitches, reference_chunks=reference_chunks)
+
+    final_results = [process_chunk_partial(match) for match in top_cosine_matches]
+    end = time.time()
+    if DEBUG:
+        st.text("DTW took %s seconds" % (end - start))
+
+    #with Pool(processes=cpu_count()) as pool:
+    #    final_results = pool.map(process_chunk_partial, top_cosine_matches)
+
+    final_scores = [result for result in final_results if result is not None]
+    final_scores.sort(key=lambda x: x[1])  # Lower DTW score is better
+
+    # Ensure unique tracks in final results
+    unique_tracks = set()
+    final_scores = [match for match in final_scores if match[5] not in unique_tracks and not unique_tracks.add(match[5])]
+
+    logging.info("Final top matches after DTW: %s", final_scores[:top_n])
+    return final_scores[:top_n]
 
 def format_time(seconds):
     minutes = int(seconds // 60)
@@ -138,17 +196,24 @@ if __name__ == "__main__":
     chunk_length = 20  # seconds
     overlap = 18  # seconds
 
-    print("Loading query MIDI file...")
-    query_pitches, query_times = midi_to_pitches_and_times('query.mid')
+    try:
+        logging.info("Loading query MIDI file...")
+        query_pitches, query_times = midi_to_pitches_and_times('query.mid')
 
-    print("Loading reference MIDI file...")
-    reference_pitches, reference_times = midi_to_pitches_and_times('reference.mid')
+        logging.info("Loading reference MIDI file...")
+        reference_pitches, reference_times = midi_to_pitches_and_times('reference.mid')
 
-    print("Splitting reference MIDI file into chunks...")
-    reference_chunks, start_times = split_midi(reference_pitches, reference_times, chunk_length, overlap)
+        logging.info("Splitting reference MIDI file into chunks...")
+        reference_chunks, start_times = split_midi(reference_pitches, reference_times, chunk_length, overlap)
 
-    print("Finding the best matches using DTW...")
-    top_matches = best_matches(query_pitches, reference_chunks, start_times, track_names=None, top_n=10)
+        logging.info("Finding the best matches using histogram comparison and DTW...")
+        track_names = ["Track" + str(i) for i in range(len(reference_chunks))]
+        top_matches = best_matches(query_pitches, reference_chunks, start_times, track_names, top_n=10)
 
-    for i, (score, start_time, shift, median_diff_semitones, track) in enumerate(top_matches):
-        print(f"Match {i+1}: Score = {score}, Start time = {format_time(start_time)}, Shift = {shift} semitones, Median difference = {median_diff_semitones} Track = {track}")
+        for i, (cosine_similarity_score, dtw_score, start_time, shift, median_diff_semitones, track) in enumerate(top_matches):
+            logging.info(f"Match {i+1}: Cosine Similarity = {cosine_similarity_score:.2f}, DTW Score = {dtw_score:.2f}, Start time = {format_time(start_time)}, Shift = {shift} semitones, Median difference = {median_diff_semitones} semitones, Track Name = {track}")
+
+    except Exception as e:
+        logging.error("Error processing sample query: %s", traceback.format_exc())
+        st.error(f"Error processing sample query: {e}")
+

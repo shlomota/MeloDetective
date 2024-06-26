@@ -27,9 +27,9 @@ def fetch_metadata_and_download(query, output_dir):
 
             # Download the thumbnail image
             query_hash = hashlib.md5(video_url.encode()).hexdigest()
-            thumbnail_filename = f"data/metadata/{query_hash}.jpg"
-            if not os.path.exists("data/metadata"):
-                os.makedirs("data/metadata")
+            thumbnail_filename = f"/home/ubuntu/MeloDetective/data/meta/home/ubuntu/MeloDetective/data/{query_hash}.jpg"
+            if not os.path.exists("/home/ubuntu/MeloDetective/data/metadata"):
+                os.makedirs("/home/ubuntu/MeloDetective/data/metadata")
             response = requests.get(thumbnail_url)
             with open(thumbnail_filename, 'wb') as f:
                 f.write(response.content)
@@ -41,7 +41,7 @@ def fetch_metadata_and_download(query, output_dir):
             }
 
             # Save metadata
-            metadata_file = os.path.join(f"data/metadata/{query_hash}.txt")
+            metadata_file = os.path.join(f"/home/ubuntu/MeloDetective/data/meta/home/ubuntu/MeloDetective/data/{query_hash}.txt")
             with open(metadata_file, 'w') as f:
                 f.write(video_url)
 
@@ -57,7 +57,7 @@ def search_youtube(query):
             'preferredcodec': 'mp3',
             'preferredquality': '192',
         }],
-        'outtmpl': 'data/library/%(title)s.%(ext)s',
+        'outtmpl': '/home/ubuntu/MeloDetective/data/library/%(title)s.%(ext)s',
     }
     
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:

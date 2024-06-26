@@ -3,7 +3,7 @@ import subprocess
 import multiprocessing
 
 # Directory containing the MP3 files
-directory = "SongDetector/data/library"
+directory = "SongDetector//home/ubuntu/MeloDetective/data/library"
 
 # Get the number of CPU cores
 num_cores = multiprocessing.cpu_count()
