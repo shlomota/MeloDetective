@@ -3,12 +3,15 @@ import streamlit as st
 import numpy as np
 from scipy.spatial.distance import cosine
 from multiprocessing import Pool, cpu_count
+import multiprocessing
 from functools import partial
 import logging
 import time
 import traceback
 from fastdtw import fastdtw
 from consts import DEBUG
+import concurrent.futures
+
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(level)s - %(message)s')
@@ -182,14 +185,21 @@ def process_chunk_dtw(chunk_data, query_pitches, reference_chunks):
 def best_matches(query_pitches, reference_chunks, start_times, track_names, top_n=10):
     # Step 1: Prefilter with Cosine Similarity
     logging.info("Starting prefiltering with cosine similarity...")
-    top_cosine_matches = best_matches_cosine(query_pitches, reference_chunks, start_times, track_names, top_n=1000)
+    top_cosine_matches = best_matches_cosine(query_pitches, reference_chunks, start_times, track_names, top_n=500)
 
     # Step 2: Rerank with DTW
     logging.info("Starting reranking with DTW...")
     start = time.time()
     process_chunk_partial = partial(process_chunk_dtw, query_pitches=query_pitches, reference_chunks=reference_chunks)
 
-    final_results = [process_chunk_partial(match) for match in top_cosine_matches]
+    #final_results = [process_chunk_partial(match) for match in top_cosine_matches]
+    #multiprocessing
+    #with multiprocessing.Pool() as pool:
+    #    final_results = pool.map(process_chunk_partial, top_cosine_matches)
+    #multithreading
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        final_results = list(executor.map(process_chunk_partial, top_cosine_matches))
+
     end = time.time()
     if DEBUG:
         st.text("DTW took %s seconds" % (end - start))
