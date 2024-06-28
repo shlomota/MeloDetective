@@ -9,7 +9,7 @@ import logging
 import time
 import traceback
 from fastdtw import fastdtw
-from consts import DEBUG
+import consts
 import concurrent.futures
 
 
@@ -144,8 +144,8 @@ def best_matches_cosine(query_pitches, reference_chunks, start_times, track_name
         results = pool.starmap(process_chunk_cosine_matrix_batch, [(query_hist, reference_chunks, batch, start_times, track_names) for batch in chunk_batches])
 
     end = time.time()
-    if DEBUG:
-        st.text("%s" % (end - start))
+    if consts.DEBUG:
+        st.text("Cosine similarity prefiltering took: %s" % (end - start))
     # Flatten results
     results = [item for sublist in results for item in sublist]
     scores = sorted(results, key=lambda x: x[0], reverse=True)  # Higher similarity is better
@@ -201,8 +201,8 @@ def best_matches(query_pitches, reference_chunks, start_times, track_names, top_
         final_results = list(executor.map(process_chunk_partial, top_cosine_matches))
 
     end = time.time()
-    if DEBUG:
-        st.text("DTW took %s seconds" % (end - start))
+    if consts.DEBUG:
+        st.text("DTW took %s seconds, on %s items" % (end - start, len(top_cosine_matches)))
 
     final_scores = [result for result in final_results if result is not None]
     final_scores.sort(key=lambda x: x[1])  # Lower DTW score is better

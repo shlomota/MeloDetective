@@ -8,7 +8,8 @@ import streamlit as st
 from audio_processing import extract_vocals, convert_to_midi, split_midi, midi_to_pitches_and_times, process_audio, sanitize_filename, extract_midi_chunk, save_midi_chunk, is_in_library
 from youtube_search import fetch_metadata_and_download, search_youtube
 from download_utils import download_button
-from consts import SAMPLE_QUERIES_DIR, LIBRARY_DIR, MIDIS_DIR, METADATA_DIR, LOG_DIR, CHUNKS_DIR, DEBUG
+from consts import SAMPLE_QUERIES_DIR, LIBRARY_DIR, MIDIS_DIR, METADATA_DIR, LOG_DIR, CHUNKS_DIR 
+import consts
 import numpy as np
 import matplotlib.pyplot as plt
 import tempfile
@@ -98,7 +99,7 @@ def display_results(top_matches, query_midi_path, search_fallback=False):
                     st.write(f"Cosine Similarity Score: {cosine_similarity_score:.2f}, DTW Score: {dtw_score:.2f}, Start time: {start_time:.2f}, Shift: {shift} semitones, Median difference: {median_diff_semitones} semitones")
                 else:
                     st.write(f"No YouTube results found for {track}")
-        if DEBUG:
+        if consts.DEBUG:
             display_path(path)
 
 def process_and_add_to_library(url):

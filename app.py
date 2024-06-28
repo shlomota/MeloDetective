@@ -11,7 +11,20 @@ from youtube_search import fetch_metadata_and_download, search_youtube
 from audio_processing import trim_audio, process_audio, extract_vocals, convert_to_midi, is_in_library
 from utils import setup_logger, display_results, process_and_add_to_library
 from download_utils import download_button
-from consts import SAMPLE_QUERIES_DIR, LIBRARY_DIR, MIDIS_DIR, METADATA_DIR, LOG_DIR, DEBUG
+from consts import SAMPLE_QUERIES_DIR, LIBRARY_DIR, MIDIS_DIR, METADATA_DIR, LOG_DIR
+import consts
+
+# Set page configuration to hide the sidebar by default
+st.set_page_config(
+    initial_sidebar_state="collapsed",  # Sidebar is collapsed by default
+    page_title="Carlebot",
+)
+
+st.sidebar.title("Settings")
+debug_option = st.sidebar.checkbox("Debug Mode")
+
+# Update the DEBUG variable in consts.py
+consts.DEBUG = debug_option
 
 
 # Ensure all required directories exist
@@ -36,7 +49,7 @@ def get_sorted_files_by_mod_time(directory):
     return sorted_filenames
 
 def remove_file_extension(filename):
-    return os.path.splitext(filename)[0]
+    return os.path.splitext(filename)[0].replace("--", "/")
 
 def load_sample_queries():
     sample_queries = get_sorted_files_by_mod_time(SAMPLE_QUERIES_DIR)
