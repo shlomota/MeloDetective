@@ -96,18 +96,6 @@ def main():
 
     with tab2:
         st.write("Record 20 seconds of audio directly:")
-        st.markdown(
-            """
-            <style>
-            .small-font {
-                font-size:14px;
-            }
-            </style>
-            """, 
-            unsafe_allow_html=True
-        )
-        st.markdown("<span class='small-font'>***Note:*** *could take a minute to process, on mobile devices you may need to try start and stop twice*</span>", unsafe_allow_html=True)
-
         # Record audio using mic_recorder
         audio = mic_recorder(
             start_prompt="Start Recording",
