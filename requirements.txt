@@ -7,5 +7,5 @@ mido
 librosa
 streamlit
 pydub
-streamlit-audiorec
 midiutil
+streamlit-mic-recorder

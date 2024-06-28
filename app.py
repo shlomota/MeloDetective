@@ -1,4 +1,5 @@
 import streamlit as st
+from streamlit_mic_recorder import mic_recorder
 import traceback
 import time
 import tempfile
@@ -6,12 +7,12 @@ import io
 import os
 import hashlib
 from pydub import AudioSegment
-from st_audiorec import st_audiorec
 from youtube_search import fetch_metadata_and_download, search_youtube
 from audio_processing import trim_audio, process_audio, extract_vocals, convert_to_midi, is_in_library
 from utils import setup_logger, display_results, process_and_add_to_library
 from download_utils import download_button
 from consts import SAMPLE_QUERIES_DIR, LIBRARY_DIR, MIDIS_DIR, METADATA_DIR, LOG_DIR, DEBUG
+
 
 # Ensure all required directories exist
 required_dirs = [LIBRARY_DIR, MIDIS_DIR, METADATA_DIR, LOG_DIR]
@@ -94,22 +95,30 @@ def main():
         )
         st.markdown("<span class='small-font'>***Note:*** *could take a minute to process, on mobile devices you may need to try start and stop twice*</span>", unsafe_allow_html=True)
 
-        # Record audio
-        wav_audio_data = st_audiorec()
+        # Record audio using mic_recorder
+        audio = mic_recorder(
+            start_prompt="Start Recording",
+            stop_prompt="Stop Recording",
+            just_once=True,
+            format="webm",
+            key='recorder'
+        )
 
         # If audio data is available, save it and play it back
-        if wav_audio_data is not None:
-            start_time = time.time()
-            st.write("Recording and processing the file...")
-        
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp_file:
-                tmp_file.write(wav_audio_data)
+        if audio:
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".webm") as tmp_file:
+                tmp_file.write(audio['bytes'])
                 tmp_file_path = tmp_file.name
-        
-            st.audio(wav_audio_data, format="audio/wav")
-            
-            start_time = time.time()
-            top_matches, query_midi_path = process_audio(tmp_file_path)
+
+            # Convert webm to wav using pydub
+            audio_segment = AudioSegment.from_file(tmp_file_path, format="webm")
+            wav_tmp_file_path = tmp_file_path.replace(".webm", ".wav")
+            audio_segment.export(wav_tmp_file_path, format="wav")
+
+            st.audio(wav_tmp_file_path, format="audio/wav")
+
+            # Process the audio file and display results
+            top_matches, query_midi_path = process_audio(wav_tmp_file_path)
             if top_matches:
                 display_results(top_matches, query_midi_path, search_fallback=True)
 
@@ -126,6 +135,7 @@ def main():
                 tmp_file.write(audio_file.getvalue())
                 tmp_file_path = tmp_file.name
 
+            st.write(f"Uploaded file in {time.time() - start_time:.2f} seconds.")
 
             # Now load the audio from the temporary file
             try:
@@ -138,6 +148,7 @@ def main():
                 audio.export(buffer, format="wav")
                 st.audio(buffer.getvalue(), format="audio/wav")
                 
+                st.write(f"Processed audio in {time.time() - start_time:.2f} seconds.")
 
                 # Process the audio
                 start_time = time.time()
