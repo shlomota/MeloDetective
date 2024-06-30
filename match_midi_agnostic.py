@@ -14,7 +14,7 @@ import concurrent.futures
 
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(level)s - %(message)s')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 def midi_to_pitches_and_times(midi_file):
     midi = mido.MidiFile(midi_file)
@@ -186,6 +186,8 @@ def best_matches(query_pitches, reference_chunks, start_times, track_names, top_
     # Step 1: Prefilter with Cosine Similarity
     logging.info("Starting prefiltering with cosine similarity...")
     top_cosine_matches = best_matches_cosine(query_pitches, reference_chunks, start_times, track_names, top_n=500)
+    mm = [a for a in top_cosine_matches if "ebo" in a[-2]]
+    logging.info("eb matches: %s" % (mm))
 
     # Step 2: Rerank with DTW
     logging.info("Starting reranking with DTW...")
@@ -206,6 +208,11 @@ def best_matches(query_pitches, reference_chunks, start_times, track_names, top_
 
     final_scores = [result for result in final_results if result is not None]
     final_scores.sort(key=lambda x: x[1])  # Lower DTW score is better
+
+	# Extract indices and corresponding elements
+    indexed_final_scores = [(index, value) for index, value in enumerate(final_scores)]
+    mm = [(index, value) for index, value in indexed_final_scores if "ebo" in value[-1]]
+    logging.info("eb matches DTW: %s" % (mm))
 
     # Ensure unique tracks in final results
     unique_tracks = set()

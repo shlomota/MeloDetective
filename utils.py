@@ -73,11 +73,10 @@ def display_results(top_matches, query_midi_path, search_fallback=False):
             if search_fallback:
                 st.write(f"No metadata found for {track}, searching YouTube (Result link may not be correct)...")
                 qtrack = track
-                logging.info(track, len(track.split()))
                 if len(track.split()) < 4:
                     qtrack = track.strip() + " Carlebach"
-                    query_hash = hashlib.md5(qtrack.encode()).hexdigest()
-                    logging.info("updated hash: %s" % (query_hash))
+                    #query_hash = hashlib.md5(qtrack.encode()).hexdigest()
+                    #logging.info("updated hash: %s" % (query_hash))
                 video_info = search_youtube(qtrack)
 
                 if video_info:
@@ -91,10 +90,20 @@ def display_results(top_matches, query_midi_path, search_fallback=False):
 
                     with open(thumbnail_file, 'wb') as f:
                         f.write(response.content)
+
+                    with open(metadata_file, "w") as f:
+                        f.write(video_url)
                     youtube_url = f"{video_url}&t={int(start_time)}s"
                     st.markdown(f"**Match {i+1}:** [{track}]({youtube_url})")
                     st.image(thumbnail_file, width=120)
                     st.write(f"Cosine Similarity Score: {cosine_similarity_score:.2f}, DTW Score: {dtw_score:.2f}, Start time: {start_time:.2f}, Shift: {shift} semitones, Median difference: {median_diff_semitones} semitones")
+                    midi_path = os.path.join(MIDIS_DIR, f"{track}.mid")
+                    chunk = extract_midi_chunk(midi_path, start_time)
+                    if chunk:
+                        chunk_path = os.path.join(CHUNKS_DIR, f"{track}_chunk.mid")
+                        save_midi_chunk(chunk, chunk_path)
+                        midi_download_str = download_button(open(chunk_path, "rb").read(), f"{track}_chunk.mid", "Download Result MIDI Chunk")
+                        st.markdown(midi_download_str, unsafe_allow_html=True)
                 else:
                     st.write(f"No YouTube results found for {track}")
         if consts.DEBUG:
@@ -118,7 +127,8 @@ def process_and_add_to_library(url):
                         convert_to_midi(vocals_path, midi_path)
                     else:
                         logger.error(f"Vocals file not found for {video_title}")
-                    query_hash = hashlib.md5(video_url.encode()).hexdigest()
+                    #query_hash = hashlib.md5(video_url.encode()).hexdigest()
+                    query_hash = hashlib.md5(sanitized_video_title.encode()).hexdigest()
                     metadata_file = os.path.join("/home/ubuntu/MeloDetective/data/metadata", f"{query_hash}.txt")
                     with open(metadata_file, 'w') as f:
                         f.write(video_info['url'])
