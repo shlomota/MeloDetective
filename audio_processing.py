@@ -12,10 +12,7 @@ from mido import MidiFile, MidiTrack, Message
 import mido
 import streamlit as st
 import consts
-
-LIBRARY_DIR = "/home/ubuntu/MeloDetective/data/library"
-MIDIS_DIR = "/home/ubuntu/MeloDetective/data/midis"
-METADATA_DIR = "/home/ubuntu/MeloDetective/data/metadata"
+from consts import LIBRARY_DIR, MIDIS_DIR, METADATA_DIR
 
     
 def sanitize_filename(filename):
