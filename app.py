@@ -62,7 +62,7 @@ def main():
     # Create tabs for different options
     musical_note = "\U0001F3B5"
     microphone = "\U0001F3A4"
-    tab1, tab2, tab3, tab4, tab5 = st.tabs(["Use a Sample Query", f"{musical_note}Sing/Hum{microphone}", "Upload Recording", "Add YouTube Link to Library", "Is My Song in the Database?"])
+    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["Use a Sample", f"{musical_note}Sing/Hum{microphone}", "Upload", "Add to the Library", "Explore Song Library", "How Does it Work?"])
 
     with tab1:
         st.write("Select a sample query:")
@@ -180,7 +180,59 @@ def main():
             results = search_songs(query, library_songs)
             for result in results[:10]:
                 st.write(result)
-                
+
+
+    with tab6:
+        st.header("How does it work?")
+
+        st.subheader("1. Extracting Vocals")
+        st.write("""
+        The first step involves extracting the vocal track from the audio file for each audio file added to the library. This is done using the **Demucs** algorithm, which is a state-of-the-art music source separation tool. It isolates the vocal track from the accompaniment, providing a clearer input for the next steps.
+        """)
+
+        st.subheader("2. Converting to MIDI")
+        st.write("""
+        After isolating the vocals, we convert the audio into MIDI format using the **Melodia** algorithm. This process essentially translates the sound into musical notes, capturing the melody of the vocal track. Apparently, this is much harder than converting instrument sounds to melodies.
+        """)
+        st.write("***Note:*** *You can check out the melody that was extracted from the query and results using the \"Download MIDI\" and check them out with a [MIDI parser](https://signal.vercel.app/edit).*")
+
+        st.subheader("3. Chunking MIDI Files")
+        st.write("""
+        The MIDI files are then split into chunks of 20 seconds with overlaps. This chunking helps us match segments of the melody more effectively and also enables us to create timestamped links to YouTube, which is a cool feature. Each chunk is processed individually in the subsequent steps.
+        """)
+
+        st.subheader("4. Standardizing to the Same Key")
+        st.write("""
+        To ensure consistency, we normalize the notes by subtracting the median pitch in each chunk. This step standardizes the melody to a common key, making it easier to compare different tracks.
+        """)
+
+        st.subheader("5. Vector Representation")
+        st.write("""
+        We create a histogram of the normalized notes, which serves as a vector representation of the melody. Vector representations are a foundational concept in modern AI, used in everything from Netflix recommendations to language models like ChatGPT. The idea is to map data to a space where similar items are close together, making it easier to identify and compare them.
+        
+        - **Similarity in Space**: In AI, having similar items close together in a vector space allows for efficient similarity searches and comparisons.
+        - **Training Data**: Typically, creating effective vector representations requires training on large amounts of data to capture the underlying meaning or structure.
+        - **Note Histogram**: In our case, we leverage the histogram of notes as a kind of shortcut. While it loses much of the detailed information, it is highly effective for prefiltering using cosine similarity.
+        - **Bag of Notes**: Similar to a "bag of words" model in text analysis, this histogram focuses on the frequency and occurrence of each note rather than their order.
+        """)
+
+        st.subheader("6. Cosine Similarity Prefiltering")
+        st.write("""
+        Using the histogram representation, we calculate the cosine similarity between the query and reference tracks. This prefiltering step helps us quickly identify the top N candidate matches that are most similar to the query.
+        """)
+
+        st.subheader("7. Reranking with Modified DTW Algorithm")
+        st.write("""
+        The top N results from the prefiltering step are then reranked using a modified **Dynamic Time Warping (DTW)** algorithm. This advanced algorithm accounts for variations in tempo and note duration, providing a more accurate match by considering the sequence and timing of notes.
+        - **Stretch Penalty**: A penalty is applied for long stretches of horizontal or vertical steps in the DTW path, which helps to penalize long mismatches.
+        """)
+
+
+        st.write("""
+        This comprehensive approach ensures that the most accurate matches are identified, even if the melodies have variations in tempo or pitch.
+        """)
+
+               
     # Add footer with hyperlink
     st.markdown(
         """

@@ -46,8 +46,6 @@ def display_path(path):
 
 def display_results(top_matches, query_midi_path, search_fallback=False):
     st.subheader("Top Matches:")
-    download_str = download_button(open(query_midi_path, "rb").read(), "query.mid", "Download Query MIDI")
-    st.markdown(download_str, unsafe_allow_html=True)
 
     for i, match in enumerate(top_matches):
         cosine_similarity_score, dtw_score, start_time, shift,path, median_diff_semitones, track = match

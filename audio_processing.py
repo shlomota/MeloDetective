@@ -6,6 +6,7 @@ from pydub import AudioSegment
 import os
 import hashlib
 import re
+from download_utils import download_button
 from find_midi_matches_library import best_matches, midi_to_pitches_and_times, load_chunks_from_directory
 from mido import MidiFile, MidiTrack, Message
 import mido
@@ -59,7 +60,8 @@ def process_audio(audio_file_path):
     try:
         convert_to_midi(audio_file_path, midi_file_path)
         st.success("Audio converted to MIDI successfully!")
-
+        download_str = download_button(open(midi_file_path, "rb").read(), "query.mid", "Download Query MIDI")
+        st.markdown(download_str, unsafe_allow_html=True)
 
         # Load the query MIDI file
         query_pitches, query_times = midi_to_pitches_and_times(midi_file_path)
