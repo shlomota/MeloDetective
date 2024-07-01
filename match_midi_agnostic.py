@@ -138,55 +138,13 @@ def process_chunk_dtw(chunk_data, query_pitches, reference_chunks):
         logging.error(f"Error in process_chunk_dtw: {traceback.format_exc()}")
         return None
 
-
-def best_matches_old(query_pitches, reference_chunks, start_times, track_names, top_n=10):
-    # Step 1: Prefilter with Cosine Similarity
-    logging.info("Starting prefiltering with cosine similarity...")
-
-    top_cosine_matches = best_matches_cosine(query_pitches, reference_chunks, start_times, track_names, top_n=500)
-    mm = [a for a in top_cosine_matches if "ebo" in a[-2]]
-    logging.info("eb matches: %s" % (mm))
-
-    # Step 2: Rerank with DTW
-    logging.info("Starting reranking with DTW...")
-    start = time.time()
-    process_chunk_partial = partial(process_chunk_dtw, query_pitches=query_pitches, reference_chunks=reference_chunks)
-
-    # final_results = [process_chunk_partial(match) for match in top_cosine_matches]
-    # multiprocessing
-    # with multiprocessing.Pool() as pool:
-    #    final_results = pool.map(process_chunk_partial, top_cosine_matches)
-    # multithreading
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        final_results = list(executor.map(process_chunk_partial, top_cosine_matches))
-
-    end = time.time()
-    if consts.DEBUG:
-        st.text("DTW took %s seconds, on %s items" % (end - start, len(top_cosine_matches)))
-
-    final_scores = [result for result in final_results if result is not None]
-    final_scores.sort(key=lambda x: x[1])  # Lower DTW score is better
-
-    # Extract indices and corresponding elements
-    indexed_final_scores = [(index, value) for index, value in enumerate(final_scores)]
-    mm = [(index, value) for index, value in indexed_final_scores if "ebo" in value[-1]]
-    logging.info("eb matches DTW: %s" % (mm))
-
-    # Ensure unique tracks in final results
-    unique_tracks = set()
-    final_scores = [match for match in final_scores if
-                    match[-1] not in unique_tracks and not unique_tracks.add(match[-1])]
-
-    logging.info("Final top matches after DTW: %s", final_scores[:top_n])
-    return final_scores[:top_n]
-
 def best_matches(query_pitches, top_n=10):
     logging.info("Starting prefiltering with cosine similarity...")
     normalized_query_pitches = normalize_pitch_sequence(query_pitches)
     query_hist = calculate_histogram(normalized_query_pitches)
 
     # Generate shifted queries
-    shifted_queries = [normalize_pitch_sequence(query_pitches, shift) for shift in range(-1, 2)]
+    shifted_queries = [normalize_pitch_sequence(query_pitches, shift) for shift in range(-2, 3)]
     shifted_hists = [calculate_histogram(shifted_query) for shifted_query in shifted_queries]
 
     # Query ChromaDB for each shifted histogram
