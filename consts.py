@@ -5,9 +5,7 @@ from chromadb.config import Settings
 # Initialize ChromaDB client
 CHROMA_CLIENT = chromadb.Client(Settings(
     is_persistent=True,
-    persist_directory="./chroma_db",
-    ef=200,  # Larger values will improve recall but increase query time
-    M=32  # Larger values will improve accuracy but increase index size
+    persist_directory="./chroma_db"
 ))
 
 # Function to get or create collection
@@ -19,7 +17,7 @@ def get_or_create_collection(client, collection_name="midi_chunks"):
     return collection
 
 # Initialize the collection
-MIDIS_COLLECTION = get_or_create_collection(CHROMA_CLIENT)
+MIDIS_COLLECTION = client.get_or_create_collection("midi_chunks", metadata={"hnsw:M": 64})
 
 SAMPLE_QUERIES_DIR = "/home/ubuntu/MeloDetective/data/sample_queries"
 LIBRARY_DIR = "/home/ubuntu/MeloDetective/data/library"
