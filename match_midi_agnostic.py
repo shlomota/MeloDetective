@@ -218,7 +218,7 @@ def best_matches(query_pitches, top_n=10):
 
     # Sort results by cosine similarity
     all_results.sort(key=lambda x: x[0], reverse=True)
-    top_cosine_matches = all_results[:top_n * 10]
+    top_cosine_matches = all_results[:top_n * 50]
 
     # Rerank with DTW using multithreading
     logging.info("Starting reranking with DTW...")
