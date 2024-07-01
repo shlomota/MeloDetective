@@ -7,7 +7,8 @@ import os
 import hashlib
 import re
 from download_utils import download_button
-from midi_chunk_processor import best_matches, midi_to_pitches_and_times, load_chunks_from_directory
+from midi_utils import midi_to_pitches_and_times
+from match_midi_agnostic import best_matches
 from mido import MidiFile, MidiTrack, Message
 import mido
 import streamlit as st
@@ -62,10 +63,6 @@ def process_audio(audio_file_path):
 
         # Load the query MIDI file
         query_pitches, query_times = midi_to_pitches_and_times(midi_file_path)
-        
-        # Load reference MIDI files
-        result = load_chunks_from_directory(MIDIS_DIR)
-        all_chunks, all_start_times, track_names = load_chunks_from_directory(MIDIS_DIR)
 
         st.info("Finding the best matches...")
 
@@ -73,7 +70,7 @@ def process_audio(audio_file_path):
         top_n = 5
         if consts.DEBUG:
             top_n = 30
-        top_matches = best_matches(query_pitches, all_chunks, all_start_times, track_names=track_names, top_n=top_n)
+        top_matches = best_matches(query_pitches, top_n=top_n)
 
         return top_matches, midi_file_path
     except Exception as e:

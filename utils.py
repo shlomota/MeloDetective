@@ -8,7 +8,7 @@ import streamlit as st
 from audio_processing import extract_vocals, convert_to_midi, split_midi, midi_to_pitches_and_times, process_audio, sanitize_filename, extract_midi_chunk, save_midi_chunk, is_in_library
 from youtube_search import fetch_metadata_and_download, search_youtube
 from download_utils import download_button
-from midi_chunk_processor import add_midi_to_chromadb
+from midi_utils import add_midi_to_chromadb
 from consts import SAMPLE_QUERIES_DIR, LIBRARY_DIR, MIDIS_DIR, METADATA_DIR, LOG_DIR, CHUNKS_DIR 
 import consts
 import numpy as np

@@ -1,7 +1,7 @@
 import os
 import mido
 import numpy as np
-from match_midi_agnostic import midi_to_pitches_and_times, split_midi, calculate_histogram
+from match_midi_agnostic import calculate_histogram
 import logging
 from multiprocessing import Pool, cpu_count
 import chromadb
@@ -13,6 +13,31 @@ from tqdm import tqdm
 CHUNK_LENGTH = 20  # seconds
 OVERLAP = 18.5  # seconds
 MIN_NOTES = 20  # Minimum number of notes in a chunk
+
+def midi_to_pitches_and_times(midi_file):
+    midi = mido.MidiFile(midi_file)
+    pitches = []
+    times = []
+    time = 0
+    for msg in midi:
+        time += msg.time
+        if msg.type == 'note_on' and msg.velocity > 0:
+            pitches.append(msg.note)
+            times.append(time)
+    return np.array(pitches), np.array(times)
+
+def split_midi(pitches, times, chunk_length, overlap):
+    chunks = []
+    start_times = []
+    num_chunks = int((times[-1] - chunk_length) // (chunk_length - overlap)) + 1
+    for i in range(num_chunks):
+        start_time = i * (chunk_length - overlap)
+        end_time = start_time + chunk_length
+        indices = np.where((times >= start_time) & (times < end_time))
+        chunk_pitches = pitches[indices]
+        chunks.append(chunk_pitches)
+        start_times.append(start_time)
+    return chunks, start_times
 
 def process_midi_file(midi_path, track_name, chunk_length, overlap, min_notes):
     reference_pitches, reference_times = midi_to_pitches_and_times(midi_path)

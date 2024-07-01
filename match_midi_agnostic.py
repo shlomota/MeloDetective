@@ -17,30 +17,6 @@ import concurrent.futures
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
-def midi_to_pitches_and_times(midi_file):
-    midi = mido.MidiFile(midi_file)
-    pitches = []
-    times = []
-    time = 0
-    for msg in midi:
-        time += msg.time
-        if msg.type == 'note_on' and msg.velocity > 0:
-            pitches.append(msg.note)
-            times.append(time)
-    return np.array(pitches), np.array(times)
-
-def split_midi(pitches, times, chunk_length, overlap):
-    chunks = []
-    start_times = []
-    num_chunks = int((times[-1] - chunk_length) // (chunk_length - overlap)) + 1
-    for i in range(num_chunks):
-        start_time = i * (chunk_length - overlap)
-        end_time = start_time + chunk_length
-        indices = np.where((times >= start_time) & (times < end_time))
-        chunk_pitches = pitches[indices]
-        chunks.append(chunk_pitches)
-        start_times.append(start_time)
-    return chunks, start_times
 
 def normalize_pitch_sequence(pitches, shift=0):
     median_pitch = np.median(pitches)
@@ -290,29 +266,4 @@ def format_time(seconds):
     minutes = int(seconds // 60)
     seconds = int(seconds % 60)
     return f"{minutes:02}:{seconds:02}"
-
-if __name__ == "__main__":
-    chunk_length = 20  # seconds
-    overlap = 18  # seconds
-
-    try:
-        logging.info("Loading query MIDI file...")
-        query_pitches, query_times = midi_to_pitches_and_times('query.mid')
-
-        logging.info("Loading reference MIDI file...")
-        reference_pitches, reference_times = midi_to_pitches_and_times('reference.mid')
-
-        logging.info("Splitting reference MIDI file into chunks...")
-        reference_chunks, start_times = split_midi(reference_pitches, reference_times, chunk_length, overlap)
-
-        logging.info("Finding the best matches using histogram comparison and DTW...")
-        track_names = ["Track" + str(i) for i in range(len(reference_chunks))]
-        top_matches = best_matches(query_pitches, reference_chunks, start_times, track_names, top_n=10)
-
-        for i, (cosine_similarity_score, dtw_score, start_time, shift, median_diff_semitones, track) in enumerate(top_matches):
-            logging.info(f"Match {i+1}: Cosine Similarity = {cosine_similarity_score:.2f}, DTW Score = {dtw_score:.2f}, Start time = {format_time(start_time)}, Shift = {shift} semitones, Median difference = {median_diff_semitones} semitones, Track Name = {track}")
-
-    except Exception as e:
-        logging.error("Error processing sample query: %s", traceback.format_exc())
-        st.error(f"Error processing sample query: {e}")
 
