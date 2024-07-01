@@ -95,10 +95,6 @@ def load_chunks_to_chromadb(midi_dir):
     for chunks, start_times, track_names_chunk, histograms in tqdm(results):
         for chunk, start_time, track_name, histogram in zip(chunks, start_times, track_names_chunk, histograms):
             chunk_id = f"{track_name}_{start_time}"
-            logging.info(f"Adding chunk to ChromaDB: {chunk_id}")
-            logging.info(f"Note Sequence: {chunk.tolist()}")
-            logging.info(f"Histogram Vector: {histogram.tolist()}")
-
             MIDIS_COLLECTION.add(
                 documents=[str(chunk)],
                 metadatas=[{

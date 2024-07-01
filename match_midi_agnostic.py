@@ -189,38 +189,27 @@ def best_matches(query_pitches, top_n=10):
     shifted_queries = [normalize_pitch_sequence(query_pitches, shift) for shift in range(-1, 2)]
     shifted_hists = [calculate_histogram(shifted_query) for shifted_query in shifted_queries]
 
+    # Query ChromaDB for each shifted histogram
     all_results = []
-
     for hist in shifted_hists:
-        try:
-            query_result = MIDIS_COLLECTION.query(
-                query_embeddings=[hist.tolist()],
-                n_results=top_n * 50  # Retrieve more for DTW re-ranking
-            )
-        except Exception as e:
-            logging.error(f"Error querying ChromaDB: {e}")
-            continue
-
+        query_result = MIDIS_COLLECTION.query(
+            query_embeddings=[hist.tolist()],
+            n_results=top_n * 50  # Retrieve more for DTW re-ranking
+        )
         logging.info(f"Query result keys: {query_result.keys()}")
         logging.info(f"Query distances: {query_result['distances']}")
 
-        for i, metadata in enumerate(query_result["metadatas"]):
+        for i, doc in enumerate(query_result["documents"]):
             try:
-                distance = query_result["distances"][0][i]
-                if np.isnan(distance):
-                    logging.warning(f"Encountered nan distance for metadata: {metadata}")
-                    continue
-
-                similarity = 1 - distance
+                metadata = query_result["metadatas"][i][0]
+                similarity = 1 - query_result["distances"][i]
                 note_sequence = np.array(list(map(int, metadata["note_sequence"].split(','))))
                 histogram_vector = np.array(list(map(float, metadata["histogram_vector"].split(','))))
                 start_time = metadata["start_time"]
                 track_name = metadata["track_name"]
-
                 all_results.append((similarity, note_sequence, start_time, track_name, histogram_vector))
-            except Exception as e:
+            except (ValueError, TypeError) as e:
                 logging.error(f"Error parsing metadata: {e}")
-                continue
 
     if not all_results:
         logging.error("No valid results found in ChromaDB query.")
@@ -258,6 +247,7 @@ def best_matches(query_pitches, top_n=10):
 
     logging.info("Final top matches after DTW: %s", unique_final_scores)
     return unique_final_scores
+
 
 
 def format_time(seconds):
