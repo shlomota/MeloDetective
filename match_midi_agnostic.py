@@ -197,12 +197,12 @@ def best_matches(query_pitches, top_n=10):
             n_results=top_n * 50  # Retrieve more for DTW re-ranking
         )
         logging.info(f"Query result keys: {query_result.keys()}")
-        logging.info(f"Query distances sample: {query_result['distances'][:5]}")
+        logging.info(f"Query distances sample: {query_result['distances'][0][:5]}")
 
-        for i, doc in enumerate(query_result["documents"]):
+        for i in range(len(query_result["documents"][0])):
             try:
-                metadata = query_result["metadatas"][i]
-                similarity = 1 - query_result["distances"][i]
+                metadata = query_result["metadatas"][0][i]
+                similarity = 1 - query_result["distances"][0][i]
                 note_sequence = np.array(list(map(int, metadata["note_sequence"].split(','))))
                 histogram_vector = np.array(list(map(float, metadata["histogram_vector"].split(','))))
                 start_time = metadata["start_time"]
@@ -248,6 +248,7 @@ def best_matches(query_pitches, top_n=10):
 
     logging.info("Final top matches after DTW: %s", unique_final_scores)
     return unique_final_scores
+
 
 
 def format_time(seconds):
