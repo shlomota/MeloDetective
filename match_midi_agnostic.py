@@ -133,10 +133,11 @@ def process_chunk_dtw(chunk_data, query_pitches, reference_chunks):
                 best_shift = shift
                 best_path = path
 
-        return (cosine_similarity_score, best_score, start_time, best_shift,best_path, median_diff_semitones, track_name)
+        return (cosine_similarity_score, best_score, start_time, best_shift, best_path, median_diff_semitones, track_name)
     except Exception as e:
-        logging.error("Error in process_chunk_dtw: %s", traceback.format_exc())
+        logging.error(f"Error in process_chunk_dtw: {traceback.format_exc()}")
         return None
+
 
 
 def best_matches_old(query_pitches, reference_chunks, start_times, track_names, top_n=10):
@@ -224,7 +225,7 @@ def best_matches(query_pitches, top_n=10):
     logging.info("Starting reranking with DTW...")
     start = time.time()
 
-    process_chunk_partial = partial(process_chunk_dtw, query_pitches=query_pitches)
+    process_chunk_partial = partial(process_chunk_dtw, query_pitches=query_pitches, reference_chunks=[result[1] for result in top_cosine_matches])
 
     with concurrent.futures.ThreadPoolExecutor() as executor:
         final_results = list(executor.map(process_chunk_partial, top_cosine_matches))
