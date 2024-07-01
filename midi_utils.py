@@ -92,21 +92,32 @@ def load_chunks_to_chromadb(midi_dir):
     with Pool(processes=cpu_count()) as pool:
         results = pool.starmap(process_midi_partial, midi_files)
 
+    documents = []
+    metadatas = []
+    ids = []
+    embeddings = []
+
     for chunks, start_times, track_names_chunk, histograms in tqdm(results):
         for chunk, start_time, track_name, histogram in zip(chunks, start_times, track_names_chunk, histograms):
             chunk_id = f"{track_name}_{start_time}"
-            MIDIS_COLLECTION.add(
-                documents=[str(chunk)],
-                metadatas=[{
-                    "track_name": track_name,
-                    "start_time": start_time,
-                    "chunk_length": CHUNK_LENGTH,
-                    "note_sequence": ','.join(map(str, chunk.tolist())),  # Convert list to string
-                    "histogram_vector": ','.join(map(str, histogram.tolist()))  # Convert list to string
-                }],
-                ids=[chunk_id],
-                embeddings=[histogram.tolist()]
-            )
+            documents.append(str(chunk))
+            metadatas.append({
+                "track_name": track_name,
+                "start_time": start_time,
+                "chunk_length": CHUNK_LENGTH,
+                "note_sequence": ','.join(map(str, chunk.tolist())),  # Convert list to string
+                "histogram_vector": ','.join(map(str, histogram.tolist()))  # Convert list to string
+            })
+            ids.append(chunk_id)
+            embeddings.append(histogram.tolist())
+
+    MIDIS_COLLECTION.add(
+        documents=documents,
+        metadatas=metadatas,
+        ids=ids,
+        embeddings=embeddings
+    )
+
 
 if __name__ == "__main__":
     midi_dir = MIDIS_DIR
