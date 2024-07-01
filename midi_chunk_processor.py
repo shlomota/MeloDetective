@@ -67,7 +67,7 @@ def load_chunks_to_chromadb(midi_dir):
     for chunks, start_times, track_names_chunk, histograms in tqdm(results):
         for chunk, start_time, track_name, histogram in zip(chunks, start_times, track_names_chunk, histograms):
             chunk_id = f"{track_name}_{start_time}"
-            logging.info(f"Adding chunk to ChromaDB: {chunk_id}")
+            # logging.info(f"Adding chunk to ChromaDB: {chunk_id}")
             MIDIS_COLLECTION.add(
                 documents=[str(chunk)],
                 metadatas=[{
@@ -80,7 +80,7 @@ def load_chunks_to_chromadb(midi_dir):
                 ids=[chunk_id],
                 embeddings=[histogram.tolist()]
             )
-            logging.info(f"Chunk added successfully: {chunk_id}")
+            # logging.info(f"Chunk added successfully: {chunk_id}")
 
 if __name__ == "__main__":
     midi_dir = MIDIS_DIR
