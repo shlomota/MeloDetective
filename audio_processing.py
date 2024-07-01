@@ -30,7 +30,7 @@ def sanitize_filename(filename):
 def convert_to_midi(audio_file, midi_file):
     cmd = [
         "/usr/local/bin/python2", 
-        "audio_to_midi_melodia/audio_to_midi_melodia.py",
+        "/home/ubuntu/MeloDetective/audio_to_midi_melodia/audio_to_midi_melodia.py",
         audio_file,
         midi_file,
         "120",  # BPM, you might want to make this adjustable
