@@ -208,7 +208,7 @@ def best_matches(query_pitches, top_n=10):
                 histogram_vector = np.array(list(map(float, metadata["histogram_vector"].split(','))))
                 start_time = metadata["start_time"]
                 track_name = metadata["track_name"]
-                all_results.append((similarity, note_sequence, start_time, track_name, histogram_vector))
+                all_results.append((similarity, note_sequence, start_time, track_name, histogram_vector, i))
             except (ValueError, TypeError) as e:
                 logging.error(f"Error parsing metadata for document {i}: {e}")
                 logging.error(f"Metadata content: {metadata}")
