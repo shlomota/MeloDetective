@@ -7,6 +7,7 @@ from multiprocessing import Pool, cpu_count
 import chromadb
 from functools import partial
 from consts import MIDIS_DIR, CHROMA_CLIENT, MIDIS_COLLECTION
+
 # Constants
 CHUNK_LENGTH = 20  # seconds
 OVERLAP = 18.5  # seconds
@@ -35,15 +36,17 @@ def add_midi_to_chromadb(midi_file_path, track_name):
     chunks, start_times, track_names, histograms = process_midi_file(midi_file_path, track_name, CHUNK_LENGTH, OVERLAP, MIN_NOTES)
     for chunk, start_time, histogram in zip(chunks, start_times, histograms):
         chunk_id = f"{track_name}_{start_time}"
-        MIDIS_COLLECTION.add_document(
-            chunk_id,
-            {
+        MIDIS_COLLECTION.add(
+            documents=[str(chunk)],
+            metadatas=[{
                 "track_name": track_name,
                 "start_time": start_time,
                 "chunk_length": CHUNK_LENGTH,
                 "note_sequence": chunk.tolist(),
                 "histogram_vector": histogram.tolist()
-            }
+            }],
+            ids=[chunk_id],
+            embeddings=[histogram.tolist()]
         )
 
 def load_chunks_to_chromadb(midi_dir):
@@ -63,15 +66,17 @@ def load_chunks_to_chromadb(midi_dir):
     for chunks, start_times, track_names_chunk, histograms in results:
         for chunk, start_time, track_name, histogram in zip(chunks, start_times, track_names_chunk, histograms):
             chunk_id = f"{track_name}_{start_time}"
-            MIDIS_COLLECTION.add_document(
-                chunk_id,
-                {
+            MIDIS_COLLECTION.add(
+                documents=[str(chunk)],
+                metadatas=[{
                     "track_name": track_name,
                     "start_time": start_time,
                     "chunk_length": CHUNK_LENGTH,
                     "note_sequence": chunk.tolist(),
                     "histogram_vector": histogram.tolist()
-                }
+                }],
+                ids=[chunk_id],
+                embeddings=[histogram.tolist()]
             )
 
 if __name__ == "__main__":
