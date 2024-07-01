@@ -11,6 +11,7 @@ import traceback
 from fastdtw import fastdtw
 import consts
 import concurrent.futures
+import chromadbπ
 
 
 # Configure logging
