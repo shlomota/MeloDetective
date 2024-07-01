@@ -1,7 +1,7 @@
 import os
 import mido
 import numpy as np
-from match_midi_agnostic import calculate_histogram
+from match_midi_agnostic import calculate_histogram, normalize_pitch_sequence
 import logging
 from multiprocessing import Pool, cpu_count
 import chromadb
@@ -53,7 +53,8 @@ def process_midi_file(midi_path, track_name, chunk_length, overlap, min_notes):
             filtered_chunks.append(chunk)
             filtered_start_times.append(start_time)
             filtered_track_names.append(track_name)
-            histogram = calculate_histogram(chunk)
+            normalized_chunk = normalize_pitch_sequence(chunk)
+            histogram = calculate_histogram(normalized_chunk)
             histograms.append(histogram)
 
     return filtered_chunks, filtered_start_times, filtered_track_names, histograms
@@ -75,37 +76,6 @@ def add_midi_to_chromadb(midi_file_path, track_name):
             embeddings=[histogram.tolist()]
         )
 
-def load_chunks_to_chromadb(midi_dir):
-    midi_files = []
-    for root, _, files in os.walk(midi_dir):
-        for file in files:
-            if file.endswith('.mid'):
-                midi_path = os.path.join(root, file)
-                track_name = os.path.splitext(file)[0]
-                midi_files.append((midi_path, track_name))
-
-    process_midi_partial = partial(process_midi_file, chunk_length=CHUNK_LENGTH, overlap=OVERLAP, min_notes=MIN_NOTES)
-
-    with Pool(processes=cpu_count()) as pool:
-        results = pool.starmap(process_midi_partial, midi_files)
-
-    for chunks, start_times, track_names_chunk, histograms in tqdm(results):
-        for chunk, start_time, track_name, histogram in zip(chunks, start_times, track_names_chunk, histograms):
-            chunk_id = f"{track_name}_{start_time}"
-            # logging.info(f"Adding chunk to ChromaDB: {chunk_id}")
-            MIDIS_COLLECTION.add(
-                documents=[str(chunk)],
-                metadatas=[{
-                    "track_name": track_name,
-                    "start_time": start_time,
-                    "chunk_length": CHUNK_LENGTH,
-                    "note_sequence": ','.join(map(str, chunk.tolist())),  # Convert list to string
-                    "histogram_vector": ','.join(map(str, histogram.tolist()))  # Convert list to string
-                }],
-                ids=[chunk_id],
-                embeddings=[histogram.tolist()]
-            )
-            # logging.info(f"Chunk added successfully: {chunk_id}")
 
 
 def load_chunks_to_chromadb(midi_dir):
