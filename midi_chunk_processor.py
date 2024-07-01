@@ -42,8 +42,8 @@ def add_midi_to_chromadb(midi_file_path, track_name):
                 "track_name": track_name,
                 "start_time": start_time,
                 "chunk_length": CHUNK_LENGTH,
-                "note_sequence": chunk.tolist(),
-                "histogram_vector": histogram.tolist()
+                "note_sequence": ','.join(map(str, chunk.tolist())),  # Convert list to string
+                "histogram_vector": ','.join(map(str, histogram.tolist()))  # Convert list to string
             }],
             ids=[chunk_id],
             embeddings=[histogram.tolist()]
@@ -72,8 +72,8 @@ def load_chunks_to_chromadb(midi_dir):
                     "track_name": track_name,
                     "start_time": start_time,
                     "chunk_length": CHUNK_LENGTH,
-                    "note_sequence": chunk.tolist(),
-                    "histogram_vector": histogram.tolist()
+                    "note_sequence": ','.join(map(str, chunk.tolist())),  # Convert list to string
+                    "histogram_vector": ','.join(map(str, histogram.tolist()))  # Convert list to string
                 }],
                 ids=[chunk_id],
                 embeddings=[histogram.tolist()]
