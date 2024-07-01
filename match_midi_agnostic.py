@@ -196,9 +196,11 @@ def best_matches(query_pitches, top_n=10):
             query_embeddings=[hist.tolist()],
             n_results=top_n * 50  # Retrieve more for DTW re-ranking
         )
+        logging.info(f"Query result keys: {query_result.keys()}")
+        logging.info(f"Query distances: {query_result['distances']}")
         # Extracting relevant data from the query result
         for i, metadata in enumerate(query_result["metadatas"]):
-            similarity = 1 - query_result["distances"][i]
+            similarity = 1 - query_result["distances"][0][i]
             note_sequence = np.array(list(map(int, metadata["note_sequence"].split(','))))
             histogram_vector = np.array(list(map(float, metadata["histogram_vector"].split(','))))
             start_time = metadata["start_time"]
