@@ -107,6 +107,41 @@ def load_chunks_to_chromadb(midi_dir):
             )
             # logging.info(f"Chunk added successfully: {chunk_id}")
 
+
+def load_chunks_to_chromadb(midi_dir):
+    midi_files = []
+    for root, _, files in os.walk(midi_dir):
+        for file in files:
+            if file.endswith('.mid'):
+                midi_path = os.path.join(root, file)
+                track_name = os.path.splitext(file)[0]
+                midi_files.append((midi_path, track_name))
+
+    process_midi_partial = partial(process_midi_file, chunk_length=CHUNK_LENGTH, overlap=OVERLAP, min_notes=MIN_NOTES)
+
+    with Pool(processes=cpu_count()) as pool:
+        results = pool.starmap(process_midi_partial, midi_files)
+
+    for chunks, start_times, track_names_chunk, histograms in tqdm(results):
+        for chunk, start_time, track_name, histogram in zip(chunks, start_times, track_names_chunk, histograms):
+            chunk_id = f"{track_name}_{start_time}"
+            logging.info(f"Adding chunk to ChromaDB: {chunk_id}")
+            logging.info(f"Note Sequence: {chunk.tolist()}")
+            logging.info(f"Histogram Vector: {histogram.tolist()}")
+
+            MIDIS_COLLECTION.add(
+                documents=[str(chunk)],
+                metadatas=[{
+                    "track_name": track_name,
+                    "start_time": start_time,
+                    "chunk_length": CHUNK_LENGTH,
+                    "note_sequence": ','.join(map(str, chunk.tolist())),  # Convert list to string
+                    "histogram_vector": ','.join(map(str, histogram.tolist()))  # Convert list to string
+                }],
+                ids=[chunk_id],
+                embeddings=[histogram.tolist()]
+            )
+
 if __name__ == "__main__":
     midi_dir = MIDIS_DIR
     load_chunks_to_chromadb(midi_dir)
