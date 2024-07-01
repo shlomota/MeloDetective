@@ -7,6 +7,7 @@ from multiprocessing import Pool, cpu_count
 import chromadb
 from functools import partial
 from consts import MIDIS_DIR, CHROMA_CLIENT, MIDIS_COLLECTION
+from tqdm import tqdm
 
 # Constants
 CHUNK_LENGTH = 20  # seconds
@@ -63,9 +64,10 @@ def load_chunks_to_chromadb(midi_dir):
     with Pool(processes=cpu_count()) as pool:
         results = pool.starmap(process_midi_partial, midi_files)
 
-    for chunks, start_times, track_names_chunk, histograms in results:
+    for chunks, start_times, track_names_chunk, histograms in tqdm(results):
         for chunk, start_time, track_name, histogram in zip(chunks, start_times, track_names_chunk, histograms):
             chunk_id = f"{track_name}_{start_time}"
+            logging.info(f"Adding chunk to ChromaDB: {chunk_id}")
             MIDIS_COLLECTION.add(
                 documents=[str(chunk)],
                 metadatas=[{
@@ -78,6 +80,12 @@ def load_chunks_to_chromadb(midi_dir):
                 ids=[chunk_id],
                 embeddings=[histogram.tolist()]
             )
+            logging.info(f"Chunk added successfully: {chunk_id}")
+
+if __name__ == "__main__":
+    midi_dir = MIDIS_DIR
+    load_chunks_to_chromadb(midi_dir)
+
 
 if __name__ == "__main__":
     midi_dir = MIDIS_DIR
