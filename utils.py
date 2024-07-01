@@ -8,6 +8,7 @@ import streamlit as st
 from audio_processing import extract_vocals, convert_to_midi, split_midi, midi_to_pitches_and_times, process_audio, sanitize_filename, extract_midi_chunk, save_midi_chunk, is_in_library
 from youtube_search import fetch_metadata_and_download, search_youtube
 from download_utils import download_button
+from midi_chunk_processor import add_midi_to_chromadb
 from consts import SAMPLE_QUERIES_DIR, LIBRARY_DIR, MIDIS_DIR, METADATA_DIR, LOG_DIR, CHUNKS_DIR 
 import consts
 import numpy as np
@@ -109,6 +110,7 @@ def display_results(top_matches, query_midi_path, search_fallback=False):
         if consts.DEBUG:
             display_path(path)
 
+#old
 def process_and_add_to_library(url):
     def background_process(url, logger):
         video_infos = fetch_metadata_and_download(url, LIBRARY_DIR)
@@ -128,6 +130,50 @@ def process_and_add_to_library(url):
                     else:
                         logger.error(f"Vocals file not found for {video_title}")
                     #query_hash = hashlib.md5(video_url.encode()).hexdigest()
+                    query_hash = hashlib.md5(sanitized_video_title.encode()).hexdigest()
+                    metadata_file = os.path.join(METADATA_DIR, f"{query_hash}.txt")
+                    with open(metadata_file, 'w') as f:
+                        f.write(video_info['url'])
+                    thumbnail_url = video_info.get('thumbnail')
+                    if thumbnail_url and thumbnail_url.startswith('http'):
+                        thumbnail_file = os.path.join(METADATA_DIR, f"{query_hash}.jpg")
+                        response = requests.get(thumbnail_url)
+                        with open(thumbnail_file, 'wb') as f:
+                            f.write(response.content)
+                    else:
+                        logger.warning(f"Invalid or missing thumbnail URL for {video_title}")
+                    logger.info(f"Completed processing {video_title}")
+                else:
+                    logger.info(f"{video_title} is already in the library.")
+            else:
+                logger.error(f"Failed to fetch metadata for {url}")
+
+    log_file = os.path.join(LOG_DIR, f"{hashlib.md5(url.encode()).hexdigest()}.log")
+    logger = setup_logger("process_logger", log_file)
+    threading.Thread(target=background_process, args=(url, logger)).start()
+    st.write(f"Started processing {url}. Check logs for progress: {log_file}")
+
+
+def process_and_add_to_library(url):
+    def background_process(url, logger):
+        video_infos = fetch_metadata_and_download(url, LIBRARY_DIR)
+        for video_info in video_infos:
+            if video_info:
+                video_title = video_info['title']
+                video_url = video_info['url']
+                sanitized_video_title = sanitize_filename(video_title)
+                mp3_file = os.path.join(LIBRARY_DIR, f"{sanitized_video_title}.mp3")
+                if not is_in_library(video_url):
+                    logger.info(f"Processing {video_title}...")
+                    extract_vocals(mp3_file, LIBRARY_DIR)
+                    vocals_path = os.path.join(LIBRARY_DIR, "htdemucs", sanitized_video_title, "vocals.wav")
+                    midi_path = os.path.join(MIDIS_DIR, f"{sanitized_video_title}.mid")
+                    if os.path.exists(vocals_path):
+                        convert_to_midi(vocals_path, midi_path)
+                        add_midi_to_chromadb(midi_path, sanitized_video_title)
+                    else:
+                        logger.error(f"Vocals file not found for {video_title}")
+                    # Save metadata
                     query_hash = hashlib.md5(sanitized_video_title.encode()).hexdigest()
                     metadata_file = os.path.join(METADATA_DIR, f"{query_hash}.txt")
                     with open(metadata_file, 'w') as f:

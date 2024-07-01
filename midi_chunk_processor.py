@@ -1,33 +1,19 @@
 import os
 import mido
 import numpy as np
-from match_midi_agnostic import midi_to_pitches_and_times, best_matches, format_time, split_midi
-import streamlit as st
-import concurrent.futures
-from functools import partial
-from multiprocessing import Pool, cpu_count
-
-
-#from generate_midi import generate_midi
-
+from match_midi_agnostic import midi_to_pitches_and_times, split_midi, calculate_histogram
 import logging
-
-# Configure logging to write to stdout
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S',
-    handlers=[logging.StreamHandler()]
-)
-
-# Create a logger
-logger = logging.getLogger(__name__)
-
+from multiprocessing import Pool, cpu_count
+import chromadb
+from consts import MIDIS_DIR
 # Constants
 CHUNK_LENGTH = 20  # seconds
 OVERLAP = 18.5  # seconds
-
 MIN_NOTES = 20  # Minimum number of notes in a chunk
+
+# Initialize ChromaDB client
+client = chromadb.Client(is_persistent=True, persist_directory="./chroma"
+collection = client.create_collection("midi_chunks")
 
 def process_midi_file(midi_path, track_name, chunk_length, overlap, min_notes):
     reference_pitches, reference_times = midi_to_pitches_and_times(midi_path)
@@ -36,22 +22,34 @@ def process_midi_file(midi_path, track_name, chunk_length, overlap, min_notes):
     filtered_chunks = []
     filtered_start_times = []
     filtered_track_names = []
+    histograms = []
 
     for chunk, start_time in zip(chunks, start_times):
         if len(chunk) >= min_notes:
             filtered_chunks.append(chunk)
             filtered_start_times.append(start_time)
             filtered_track_names.append(track_name)
+            histogram = calculate_histogram(chunk)
+            histograms.append(histogram)
 
-    return filtered_chunks, filtered_start_times, filtered_track_names
+    return filtered_chunks, filtered_start_times, filtered_track_names, histograms
 
-def load_chunks_from_directory(midi_dir):
-    all_chunks = []
-    all_start_times = []
-    track_names = []
+def add_midi_to_chromadb(midi_file_path, track_name):
+    chunks, start_times, track_names, histograms = process_midi_file(midi_file_path, track_name, CHUNK_LENGTH, OVERLAP, MIN_NOTES)
+    for chunk, start_time, histogram in zip(chunks, start_times, histograms):
+        chunk_id = f"{track_name}_{start_time}"
+        collection.add_document(
+            chunk_id,
+            {
+                "track_name": track_name,
+                "start_time": start_time,
+                "chunk_length": CHUNK_LENGTH,
+                "note_sequence": chunk.tolist(),
+                "histogram_vector": histogram.tolist()
+            }
+        )
 
-    logging.info("Chunking reference MIDI files...")
-
+def load_chunks_to_chromadb(midi_dir):
     midi_files = []
     for root, _, files in os.walk(midi_dir):
         for file in files:
@@ -60,20 +58,25 @@ def load_chunks_from_directory(midi_dir):
                 track_name = os.path.splitext(file)[0]
                 midi_files.append((midi_path, track_name))
 
-    # Define the partial function for processing each MIDI file
     process_midi_partial = partial(process_midi_file, chunk_length=CHUNK_LENGTH, overlap=OVERLAP, min_notes=MIN_NOTES)
 
-    # Use ThreadPoolExecutor for multithreading
-    #with concurrent.futures.ThreadPoolExecutor() as executor:
-    #    results = list(executor.map(lambda args: process_midi_partial(*args), midi_files))
-
-    # Use multiprocessing Pool for parallel processing
     with Pool(processes=cpu_count()) as pool:
         results = pool.starmap(process_midi_partial, midi_files)
 
-    for chunks, start_times, track_names_chunk in results:
-        all_chunks.extend(chunks)
-        all_start_times.extend(start_times)
-        track_names.extend(track_names_chunk)
+    for chunks, start_times, track_names_chunk, histograms in results:
+        for chunk, start_time, track_name, histogram in zip(chunks, start_times, track_names_chunk, histograms):
+            chunk_id = f"{track_name}_{start_time}"
+            collection.add_document(
+                chunk_id,
+                {
+                    "track_name": track_name,
+                    "start_time": start_time,
+                    "chunk_length": CHUNK_LENGTH,
+                    "note_sequence": chunk.tolist(),
+                    "histogram_vector": histogram.tolist()
+                }
+            )
 
-    return all_chunks, all_start_times, track_names
+if __name__ == "__main__":
+    midi_dir = MIDIS_DIR
+    load_chunks_to_chromadb(midi_dir)
