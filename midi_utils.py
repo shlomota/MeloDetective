@@ -111,12 +111,26 @@ def load_chunks_to_chromadb(midi_dir):
             ids.append(chunk_id)
             embeddings.append(histogram.tolist())
 
-    MIDIS_COLLECTION.add(
-        documents=documents,
-        metadatas=metadatas,
-        ids=ids,
-        embeddings=embeddings
-    )
+            if len(documents) >= 10000:
+                MIDIS_COLLECTION.add(
+                    documents=documents,
+                    metadatas=metadatas,
+                    ids=ids,
+                    embeddings=embeddings
+                )
+                documents = []
+                metadatas = []
+                ids = []
+                embeddings = []
+
+    # Insert any remaining documents
+    if documents:
+        MIDIS_COLLECTION.add(
+            documents=documents,
+            metadatas=metadatas,
+            ids=ids,
+            embeddings=embeddings
+        )
 
 
 if __name__ == "__main__":
