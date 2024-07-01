@@ -5,7 +5,9 @@ from chromadb.config import Settings
 # Initialize ChromaDB client
 CHROMA_CLIENT = chromadb.Client(Settings(
     is_persistent=True,
-    persist_directory="./chroma_db"
+    persist_directory="./chroma_db",
+    ef=200,  # Larger values will improve recall but increase query time
+    M=32  # Larger values will improve accuracy but increase index size
 ))
 
 # Function to get or create collection
