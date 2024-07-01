@@ -111,7 +111,7 @@ def process_chunk_cosine_matrix_batch(query_hist, reference_chunks, chunk_data, 
 
 def process_chunk_dtw(chunk_data, query_pitches, reference_chunks):
     try:
-        cosine_similarity_score, start_time, best_shift, median_diff_semitones, idx, track_name = chunk_data
+        cosine_similarity_score, note_sequence, start_time, histogram_vector, idx, track_name = chunk_data
         chunk = reference_chunks[idx]
         if len(chunk) == 0 or np.isnan(chunk).all():
             return None
@@ -137,7 +137,6 @@ def process_chunk_dtw(chunk_data, query_pitches, reference_chunks):
     except Exception as e:
         logging.error(f"Error in process_chunk_dtw: {traceback.format_exc()}")
         return None
-
 
 
 def best_matches_old(query_pitches, reference_chunks, start_times, track_names, top_n=10):
