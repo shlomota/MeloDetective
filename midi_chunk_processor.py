@@ -5,6 +5,7 @@ from match_midi_agnostic import midi_to_pitches_and_times, split_midi, calculate
 import logging
 from multiprocessing import Pool, cpu_count
 import chromadb
+from functools import partial
 from consts import MIDIS_DIR, CHROMA_CLIENT, MIDIS_COLLECTION
 # Constants
 CHUNK_LENGTH = 20  # seconds
