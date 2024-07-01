@@ -12,7 +12,7 @@ OVERLAP = 18.5  # seconds
 MIN_NOTES = 20  # Minimum number of notes in a chunk
 
 # Initialize ChromaDB client
-client = chromadb.Client(is_persistent=True, persist_directory="./chroma"
+client = chromadb.Client(is_persistent=True, persist_directory="./chroma")
 collection = client.create_collection("midi_chunks")
 
 def process_midi_file(midi_path, track_name, chunk_length, overlap, min_notes):
