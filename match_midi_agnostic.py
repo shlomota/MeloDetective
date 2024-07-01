@@ -111,7 +111,7 @@ def process_chunk_cosine_matrix_batch(query_hist, reference_chunks, chunk_data, 
 
 def process_chunk_dtw(chunk_data, query_pitches, reference_chunks):
     try:
-        cosine_similarity_score, start_time, best_shift, median_diff_semitones, track_name, idx = chunk_data
+        cosine_similarity_score, start_time, best_shift, median_diff_semitones, idx, track_name = chunk_data
         chunk = reference_chunks[idx]
         if len(chunk) == 0 or np.isnan(chunk).all():
             return None
@@ -208,7 +208,7 @@ def best_matches(query_pitches, top_n=10):
                 histogram_vector = np.array(list(map(float, metadata["histogram_vector"].split(','))))
                 start_time = metadata["start_time"]
                 track_name = metadata["track_name"]
-                all_results.append((similarity, note_sequence, start_time, track_name, histogram_vector, i))
+                all_results.append((similarity, note_sequence, start_time, histogram_vector, i, track_name))
             except (ValueError, TypeError) as e:
                 logging.error(f"Error parsing metadata for document {i}: {e}")
                 logging.error(f"Metadata content: {metadata}")
@@ -241,15 +241,15 @@ def best_matches(query_pitches, top_n=10):
     seen_tracks = set()
     unique_final_scores = []
     for score in final_scores:
-        if score[-1] not in seen_tracks:
+        track_name = score[-1]
+        if track_name not in seen_tracks:
             unique_final_scores.append(score)
-            seen_tracks.add(score[-1])
+            seen_tracks.add(track_name)
         if len(unique_final_scores) == top_n:
             break
 
     logging.info("Final top matches after DTW: %s", unique_final_scores)
     return unique_final_scores
-
 
 
 def format_time(seconds):
