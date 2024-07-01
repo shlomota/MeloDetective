@@ -197,12 +197,12 @@ def best_matches(query_pitches, top_n=10):
             n_results=top_n * 50  # Retrieve more for DTW re-ranking
         )
         logging.info(f"Query result keys: {query_result.keys()}")
-        logging.info(f"Query distances: {query_result['distances']}")
+        logging.info(f"Query distances sample: {query_result['distances'][:5]}")
 
         for i, doc in enumerate(query_result["documents"]):
             try:
                 metadata = query_result["metadatas"][i]
-                similarity = 1 - query_result["distances"][0][i]  # Access the first element of the distance list
+                similarity = 1 - query_result["distances"][i]
                 note_sequence = np.array(list(map(int, metadata["note_sequence"].split(','))))
                 histogram_vector = np.array(list(map(float, metadata["histogram_vector"].split(','))))
                 start_time = metadata["start_time"]
@@ -211,8 +211,6 @@ def best_matches(query_pitches, top_n=10):
             except (ValueError, TypeError) as e:
                 logging.error(f"Error parsing metadata for document {i}: {e}")
                 logging.error(f"Metadata content: {metadata}")
-                logging.error(f"Distances content: {query_result['distances']}")
-                logging.error(f"Document content: {doc}")
 
     if not all_results:
         logging.error("No valid results found in ChromaDB query.")
@@ -250,7 +248,6 @@ def best_matches(query_pitches, top_n=10):
 
     logging.info("Final top matches after DTW: %s", unique_final_scores)
     return unique_final_scores
-
 
 
 def format_time(seconds):
