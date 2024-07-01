@@ -201,15 +201,18 @@ def best_matches(query_pitches, top_n=10):
 
         for i, doc in enumerate(query_result["documents"]):
             try:
-                metadata = query_result["metadatas"][i][0]
-                similarity = 1 - query_result["distances"][i]
+                metadata = query_result["metadatas"][i]
+                similarity = 1 - query_result["distances"][0][i]  # Access the first element of the distance list
                 note_sequence = np.array(list(map(int, metadata["note_sequence"].split(','))))
                 histogram_vector = np.array(list(map(float, metadata["histogram_vector"].split(','))))
                 start_time = metadata["start_time"]
                 track_name = metadata["track_name"]
                 all_results.append((similarity, note_sequence, start_time, track_name, histogram_vector))
             except (ValueError, TypeError) as e:
-                logging.error(f"Error parsing metadata: {e}")
+                logging.error(f"Error parsing metadata for document {i}: {e}")
+                logging.error(f"Metadata content: {metadata}")
+                logging.error(f"Distances content: {query_result['distances']}")
+                logging.error(f"Document content: {doc}")
 
     if not all_results:
         logging.error("No valid results found in ChromaDB query.")
