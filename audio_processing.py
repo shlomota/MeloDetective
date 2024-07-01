@@ -69,7 +69,7 @@ def process_audio(audio_file_path):
         # Find best matches
         top_n = 5
         if consts.DEBUG:
-            top_n = 30
+            top_n = 10
         top_matches = best_matches(query_pitches, top_n=top_n)
 
         return top_matches, midi_file_path
