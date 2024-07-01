@@ -86,7 +86,3 @@ if __name__ == "__main__":
     midi_dir = MIDIS_DIR
     load_chunks_to_chromadb(midi_dir)
 
-
-if __name__ == "__main__":
-    midi_dir = MIDIS_DIR
-    load_chunks_to_chromadb(midi_dir)

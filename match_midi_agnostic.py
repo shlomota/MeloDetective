@@ -204,6 +204,34 @@ def best_matches_old(query_pitches, reference_chunks, start_times, track_names, 
     logging.info("Final top matches after DTW: %s", final_scores[:top_n])
     return final_scores[:top_n]
 
+def fetch_chunks_from_chromadb(query_hist, top_n=10):
+    results = MIDIS_COLLECTION.query(
+        query_embeddings=[query_hist.tolist()],
+        n_results=top_n  # Fetch more results for initial filtering
+    )
+
+    chunks = []
+    start_times = []
+    track_names = []
+    histograms = []
+
+    for result in results["documents"]:
+        track_name = result["track_name"]
+        start_time = result["start_time"]
+        note_sequence = np.array(list(map(int, result["note_sequence"].split(','))))
+        histogram_vector = np.array(list(map(float, result["histogram_vector"].split(','))))
+
+        chunks.append(note_sequence)
+        start_times.append(start_time)
+        track_names.append(track_name)
+        histograms.append(histogram_vector)
+
+    return chunks, start_times, track_names, histograms
+
+def parse_chromadb_result(doc):
+    note_sequence = np.array(list(map(int, doc["document"]["note_sequence"].split(','))))
+    histogram_vector = np.array(list(map(float, doc["document"]["histogram_vector"].split(','))))
+    return doc["similarity"], note_sequence, doc["document"]["start_time"], doc["document"]["track_name"], histogram_vector
 
 
 def best_matches(query_pitches, top_n=10):
@@ -218,12 +246,11 @@ def best_matches(query_pitches, top_n=10):
     # Query ChromaDB for each shifted histogram
     all_results = []
     for hist in shifted_hists:
-        query_result = MIDIS_COLLECTION.query_documents(
-            hist.tolist(),
-            top_k=top_n * 50,  # Retrieve more for DTW re-ranking
-            similarity_metric="cosine"
+        query_result = MIDIS_COLLECTION.query(
+            query_embeddings=[hist.tolist()],
+            n_results=top_n * 50  # Retrieve more for DTW re-ranking
         )
-        all_results.extend([(doc["similarity"], doc["document"]["note_sequence"], doc["document"]["start_time"], doc["document"]["track_name"], hist) for doc in query_result])
+        all_results.extend([parse_chromadb_result(doc) for doc in query_result["documents"]])
 
     # Sort results by cosine similarity
     all_results.sort(key=lambda x: x[0], reverse=True)
@@ -257,6 +284,7 @@ def best_matches(query_pitches, top_n=10):
 
     logging.info("Final top matches after DTW: %s", unique_final_scores)
     return unique_final_scores
+
 
 def format_time(seconds):
     minutes = int(seconds // 60)
