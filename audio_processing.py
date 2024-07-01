@@ -14,6 +14,7 @@ import mido
 import streamlit as st
 import consts
 from consts import LIBRARY_DIR, MIDIS_DIR, METADATA_DIR
+import shutil
 
     
 def sanitize_filename(filename):
@@ -43,6 +44,31 @@ def convert_to_midi(audio_file, midi_file):
     print(f"Running command: {' '.join(cmd)}")  # Debugging line
     subprocess.run(cmd, check=True, env=env)
     #subprocess.run(cmd, check=True)
+
+def convert_to_midi(audio_file, midi_file):
+    logging.info("Using basic pitch")
+    with tempfile.TemporaryDirectory() as temp_dir:
+        cmd = [
+            "basic-pitch",  # Use the full path to basic-pitch
+            "--minimum-frequency", "80",
+            "--maximum-frequency", "900",
+            "--onset-threshold", "0.45",
+            "--minimum-note-length", "100",
+            temp_dir,
+            audio_file
+        ]
+        print(f"Running command: {' '.join(cmd)}")  # Debugging line
+        subprocess.run(cmd, check=True)
+
+        # Find the resulting MIDI file in the temporary directory
+        for file_name in os.listdir(temp_dir):
+            if file_name.endswith('.mid'):
+                temp_midi_file = os.path.join(temp_dir, file_name)
+                shutil.copy(temp_midi_file, midi_file)
+                break
+    logging.info("Done converting to midi with basicpitch")
+
+
 
 def trim_audio(audio_segment, duration_ms=20000):
     """Trim the audio to the specified duration in milliseconds."""

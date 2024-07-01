@@ -26,6 +26,44 @@ def midi_to_pitches_and_times(midi_file):
             times.append(time)
     return np.array(pitches), np.array(times)
 
+# take length into account
+def midi_to_pitches_and_times(midi_file, time_interval=0.2, consider_length=True, remove_outliers=True):
+    midi = mido.MidiFile(midi_file)
+    pitches = []
+    times = []
+    active_notes = {}
+
+    time = 0
+    for msg in midi:
+        time += msg.time
+        if msg.type == 'note_on' and msg.velocity > 0:
+            active_notes[msg.note] = time
+        elif msg.type == 'note_off' or (msg.type == 'note_on' and msg.velocity == 0):
+            if msg.note in active_notes:
+                start_time = active_notes.pop(msg.note)
+                duration = time - start_time
+                if consider_length:
+                    num_points = int(duration / time_interval) + 1
+                    pitches.extend([msg.note] * num_points)
+                    times.extend(np.linspace(start_time, time, num_points))
+                else:
+                    pitches.append(msg.note)
+                    times.append(time)
+
+    # Convert to numpy arrays
+    pitches = np.array(pitches)
+    times = np.array(times)
+
+    threshold = 12
+    if remove_outliers:
+        median_note = np.median(pitches)
+        mask = np.abs(pitches - median_note) <= threshold
+        pitches = pitches[mask]
+        times = times[mask]
+    return np.array(pitches), np.array(times)
+
+
+
 def split_midi(pitches, times, chunk_length, overlap):
     chunks = []
     start_times = []
