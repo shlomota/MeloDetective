@@ -77,32 +77,3 @@ def load_chunks_from_directory(midi_dir):
         track_names.extend(track_names_chunk)
 
     return all_chunks, all_start_times, track_names
-
-if __name__ == "__main__":
-    #input_dir = '/content/drive/MyDrive/demucs_separated/htdemucs/'
-    #output_dir = '/content/drive/MyDrive/midis/'
-    output_dir = '/home/ubuntu/separated/htdemucs/midis'
-
-    # Convert MP3 files to MIDI
-    # process_directory(input_dir, output_dir)
-
-    # Load query MIDI file
-    query_midi_path = 'query.mid'  # Update this path to the actual query MIDI file
-    query_pitches, query_times = midi_to_pitches_and_times(query_midi_path)
-
-    # Load chunks from reference MIDI files
-    all_chunks, all_start_times, track_names = load_chunks_from_directory(output_dir)
-
-    # Find best matches
-    logger.info("Finding the best matches using DTW...")
-    top_matches = best_matches(query_pitches, all_chunks, all_start_times, track_names=track_names, top_n=10)
-
-    # Print results
-    for i, (score, start_time, shift, median_diff_semitones, track) in enumerate(top_matches):
-        print(f"Match {i+1}: Score = {score}, Start time = {format_time(start_time)}, Shift = {shift} semitones, Median difference = {median_diff_semitones} Track = {track}")
-
-    logger.info("done")
-
-
-    # for i, (score, chunk, start_time, shift, median_diff_semitones) in enumerate(top_matches):
-    #     print(f"Match {i+1}: Score = {score}, Start time = {format_time(start_time)}, Shift = {shift} semitones, Median difference = {median_diff_semitones} semitones")

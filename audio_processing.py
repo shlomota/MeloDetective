@@ -7,7 +7,7 @@ import os
 import hashlib
 import re
 from download_utils import download_button
-from find_midi_matches_library import best_matches, midi_to_pitches_and_times, load_chunks_from_directory
+from midi_chunk_processor import best_matches, midi_to_pitches_and_times, load_chunks_from_directory
 from mido import MidiFile, MidiTrack, Message
 import mido
 import streamlit as st
