@@ -10,8 +10,8 @@ import time
 import traceback
 from fastdtw import fastdtw
 import consts
+from consts import CHROMA_CLIENT, MIDIS_COLLECTION
 import concurrent.futures
-import chromadb
 
 
 # Configure logging
@@ -205,10 +205,6 @@ def best_matches_old(query_pitches, reference_chunks, start_times, track_names, 
     return final_scores[:top_n]
 
 
-# Initialize ChromaDB client
-client = chromadb.Client()
-collection = client.get_collection("midi_chunks")
-
 
 def best_matches(query_pitches, top_n=10):
     logging.info("Starting prefiltering with cosine similarity...")
@@ -222,7 +218,7 @@ def best_matches(query_pitches, top_n=10):
     # Query ChromaDB for each shifted histogram
     all_results = []
     for hist in shifted_hists:
-        query_result = collection.query_documents(
+        query_result = MIDIS_COLLECTION.query_documents(
             hist.tolist(),
             top_k=top_n * 50,  # Retrieve more for DTW re-ranking
             similarity_metric="cosine"

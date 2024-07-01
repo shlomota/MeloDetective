@@ -5,15 +5,11 @@ from match_midi_agnostic import midi_to_pitches_and_times, split_midi, calculate
 import logging
 from multiprocessing import Pool, cpu_count
 import chromadb
-from consts import MIDIS_DIR
+from consts import MIDIS_DIR, CHROMA_CLIENT, MIDIS_COLLECTION
 # Constants
 CHUNK_LENGTH = 20  # seconds
 OVERLAP = 18.5  # seconds
 MIN_NOTES = 20  # Minimum number of notes in a chunk
-
-# Initialize ChromaDB client
-client = chromadb.Client(is_persistent=True, persist_directory="./chroma")
-collection = client.create_collection("midi_chunks")
 
 def process_midi_file(midi_path, track_name, chunk_length, overlap, min_notes):
     reference_pitches, reference_times = midi_to_pitches_and_times(midi_path)
@@ -38,7 +34,7 @@ def add_midi_to_chromadb(midi_file_path, track_name):
     chunks, start_times, track_names, histograms = process_midi_file(midi_file_path, track_name, CHUNK_LENGTH, OVERLAP, MIN_NOTES)
     for chunk, start_time, histogram in zip(chunks, start_times, histograms):
         chunk_id = f"{track_name}_{start_time}"
-        collection.add_document(
+        MIDIS_COLLECTION.add_document(
             chunk_id,
             {
                 "track_name": track_name,
@@ -66,7 +62,7 @@ def load_chunks_to_chromadb(midi_dir):
     for chunks, start_times, track_names_chunk, histograms in results:
         for chunk, start_time, track_name, histogram in zip(chunks, start_times, track_names_chunk, histograms):
             chunk_id = f"{track_name}_{start_time}"
-            collection.add_document(
+            MIDIS_COLLECTION.add_document(
                 chunk_id,
                 {
                     "track_name": track_name,
