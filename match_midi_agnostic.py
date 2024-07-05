@@ -125,6 +125,7 @@ def process_chunk_dtw(chunk_data, query_pitches, reference_chunks):
 
         best_score = float('inf')
         best_path = None
+        best_shift = 0
         for shift in range(-1, 2):
             normalized_query = normalize_pitch_sequence(query_pitches, shift)
             distance, path = weighted_dtw(normalized_query, normalized_chunk)
