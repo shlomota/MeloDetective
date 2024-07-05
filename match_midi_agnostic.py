@@ -150,7 +150,7 @@ def best_matches(query_pitches, top_n=10):
     for hist in shifted_hists:
         query_result = MIDIS_COLLECTION.query(
             query_embeddings=[hist.tolist()],
-            n_results=top_n * 50  # Retrieve more for DTW re-ranking
+            n_results=top_n * 100  # Retrieve more for DTW re-ranking
         )
         logging.info(f"Query result keys: {query_result.keys()}")
         logging.info(f"Query distances sample: {query_result['distances'][0][:5]}")
@@ -174,7 +174,7 @@ def best_matches(query_pitches, top_n=10):
 
     # Sort results by cosine similarity
     all_results.sort(key=lambda x: x[0], reverse=True)
-    top_cosine_matches = all_results[:top_n * 50]
+    top_cosine_matches = all_results[:top_n * 100]
 
     # Rerank with DTW using multithreading
     logging.info("Starting reranking with DTW...")
