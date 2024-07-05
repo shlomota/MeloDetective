@@ -78,7 +78,7 @@ def split_midi(pitches, times, chunk_length, overlap):
     return chunks, start_times
 
 def process_midi_file(midi_path, track_name, chunk_length, overlap, min_notes):
-    reference_pitches, reference_times = midi_to_pitches_and_times(midi_path)
+    reference_pitches, reference_times = midi_to_pitches_and_times(midi_path, consider_length=False, remove_outliers=False)
     chunks, start_times = split_midi(reference_pitches, reference_times, chunk_length, overlap)
 
     filtered_chunks = []

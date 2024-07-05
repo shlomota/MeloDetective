@@ -45,7 +45,7 @@ def convert_to_midi(audio_file, midi_file):
     subprocess.run(cmd, check=True, env=env)
     #subprocess.run(cmd, check=True)
 
-def convert_to_midi(audio_file, midi_file):
+def convert_to_midi_basic(audio_file, midi_file):
     logging.info("Using basic pitch")
     with tempfile.TemporaryDirectory() as temp_dir:
         cmd = [
