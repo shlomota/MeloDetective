@@ -27,7 +27,7 @@ def midi_to_pitches_and_times(midi_file):
     return np.array(pitches), np.array(times)
 
 # take length into account
-def midi_to_pitches_and_times(midi_file, time_interval=0.2, consider_length=True, remove_outliers=True):
+def midi_to_pitches_and_times(midi_file, time_interval=0.2, consider_length=False, remove_outliers=False):
     midi = mido.MidiFile(midi_file)
     pitches = []
     times = []
@@ -78,7 +78,7 @@ def split_midi(pitches, times, chunk_length, overlap):
     return chunks, start_times
 
 def process_midi_file(midi_path, track_name, chunk_length, overlap, min_notes):
-    reference_pitches, reference_times = midi_to_pitches_and_times(midi_path, consider_length=False, remove_outliers=False)
+    reference_pitches, reference_times = midi_to_pitches_and_times(midi_path)
     chunks, start_times = split_midi(reference_pitches, reference_times, chunk_length, overlap)
 
     filtered_chunks = []
