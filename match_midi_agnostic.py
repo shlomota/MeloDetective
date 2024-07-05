@@ -175,7 +175,7 @@ def best_matches(query_pitches, top_n=10):
 
     # Sort results by cosine similarity
     all_results.sort(key=lambda x: x[0], reverse=True)
-    top_cosine_matches = all_results[:top_n * 100]
+    top_cosine_matches = all_results[:top_n * 50]
 
     # Log top 20 cosine matches if DEBUG is True
     if consts.DEBUG:
@@ -214,116 +214,6 @@ def best_matches(query_pitches, top_n=10):
         logging.info("Top 30 DTW results (Track Name, Start Time, Cosine Similarity, DTW Score):")
         for result in unique_final_scores[:30]:
             logging.info(f"{result[-1]}, {result[2]}, {result[0]}, {result[1]}")
-
-    return unique_final_scores[:top_n]
-
-def process_chunk_dtw_neww(chunk_data, query_pitches):
-    try:
-        cosine_similarity_score, note_sequence, start_time, histogram_vector, track_name = chunk_data
-        chunk = note_sequence
-        if len(chunk) == 0 or np.isnan(chunk).all():
-            return None
-
-        normalized_chunk = normalize_pitch_sequence(chunk, 0)
-        reference_median = np.median(chunk)
-        if np.isnan(reference_median):
-            return None
-        original_median = np.median(query_pitches)
-        median_diff_semitones = int(reference_median - original_median)
-
-        best_score = float('inf')
-        best_path = None
-        best_shift = 0
-        for shift in range(-1, 2):
-            normalized_query = normalize_pitch_sequence(query_pitches, shift)
-            distance, path = weighted_dtw(normalized_query, normalized_chunk)
-            if distance < best_score:
-                best_score = distance
-                best_shift = shift
-                best_path = path
-
-        return (cosine_similarity_score, best_score, start_time, best_shift, best_path, median_diff_semitones, track_name)
-    except Exception as e:
-        logging.error(f"Error in process_chunk_dtw: {traceback.format_exc()}")
-        return None
-
-
-def best_matches_old(query_pitches, top_n=10):
-    logging.info("Starting prefiltering with cosine similarity...")
-
-    # Generate shifted queries
-    shifted_queries = [normalize_pitch_sequence(query_pitches, shift) for shift in range(-2, 3)]
-    shifted_hists = [calculate_histogram(shifted_query) for shifted_query in shifted_queries]
-
-    # Query ChromaDB for each shifted histogram
-    all_results = []
-    for hist in shifted_hists:
-        query_result = MIDIS_COLLECTION.query(
-            query_embeddings=[hist.tolist()],
-            n_results=top_n * 100  # Retrieve more for DTW re-ranking
-        )
-        logging.info(f"Query result keys: {query_result.keys()}")
-        logging.info(f"Query distances sample: {query_result['distances'][0][:5]}")
-
-        for i in range(len(query_result["documents"][0])):
-            try:
-                metadata = query_result["metadatas"][0][i]
-                similarity = 1 - query_result["distances"][0][i]
-                note_sequence = np.array(list(map(int, metadata["note_sequence"].split(','))))
-                histogram_vector = np.array(list(map(float, metadata["histogram_vector"].split(','))))
-                start_time = metadata["start_time"]
-                track_name = metadata["track_name"]
-                all_results.append((similarity, note_sequence, start_time, histogram_vector, i, track_name))
-            except (ValueError, TypeError) as e:
-                logging.error(f"Error parsing metadata for document {i}: {e}")
-                logging.error(f"Metadata content: {metadata}")
-
-    if not all_results:
-        logging.error("No valid results found in ChromaDB query.")
-        return []
-
-    # Sort results by cosine similarity
-    all_results.sort(key=lambda x: x[0], reverse=True)
-    top_cosine_matches = all_results[:top_n * 100]
-
-    # Log top 20 cosine matches if DEBUG is True
-    if consts.DEBUG:
-        logging.info("Top 20 cosine matches (Track Name, Start Time, Cosine Similarity):")
-        for match in top_cosine_matches[:20]:
-            logging.info(f"{match[5]}, {match[2]}, {match[0]}")
-
-    # Rerank with DTW using multithreading
-    logging.info("Starting reranking with DTW...")
-    start = time.time()
-
-    process_chunk_partial = partial(process_chunk_dtw, query_pitches=query_pitches, reference_chunks=[result[1] for result in top_cosine_matches])
-
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        final_results = list(executor.map(process_chunk_partial, top_cosine_matches))
-
-    end = time.time()
-    if consts.DEBUG:
-        st.text(f"DTW took {end - start} seconds, on {len(top_cosine_matches)} items")
-
-    final_scores = [result for result in final_results if result is not None]
-    final_scores.sort(key=lambda x: x[1])  # Lower DTW score is better
-
-    # Deduplicate results
-    seen_tracks = set()
-    unique_final_scores = []
-    for score in final_scores:
-        track_name = score[-1]
-        if track_name not in seen_tracks:
-            unique_final_scores.append(score)
-            seen_tracks.add(track_name)
-        # if len(unique_final_scores) == top_n:
-        #     break
-
-    # Log top 30 DTW results if DEBUG is True
-    if consts.DEBUG:
-        logging.info("Top 30 DTW results (Track Name, Start Time, Cosine Similarity, DTW Score):")
-        for result in unique_final_scores[:30]:
-            logging.info(f"{result[-1]}, {result[0]}, {result[2]}, {result[1]}")
 
     return unique_final_scores[:top_n]
 
