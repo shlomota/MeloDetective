@@ -216,7 +216,6 @@ def best_matches(query_pitches, top_n=10):
         for result in unique_final_scores[:30]:
             logging.info(f"{result[-1]}, {result[0]}, {result[2]}, {result[1]}")
 
-    logging.info("Final top matches after DTW: %s", unique_final_scores)
     return unique_final_scores[:top_n]
 
 
