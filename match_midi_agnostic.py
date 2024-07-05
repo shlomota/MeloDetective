@@ -37,7 +37,7 @@ def cosine_similarity_matrix(query_hist, reference_hists):
     similarities = dot_product / (query_norm * reference_norms)
     return similarities
 
-def weighted_dtw(query_pitches, reference_chunk, stretch_penalty=0.2, threshold=5*10):
+def weighted_dtw(query_pitches, reference_chunk, stretch_penalty=0.2, threshold=5):
     distance, path = fastdtw(query_pitches, reference_chunk, dist=lambda x, y: (x - y) ** 2)
     total_distance = distance
     stretch_length = 0
