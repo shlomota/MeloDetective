@@ -140,8 +140,6 @@ def process_chunk_dtw(chunk_data, query_pitches, reference_chunks):
 
 def best_matches(query_pitches, top_n=10):
     logging.info("Starting prefiltering with cosine similarity...")
-    normalized_query_pitches = normalize_pitch_sequence(query_pitches)
-    query_hist = calculate_histogram(normalized_query_pitches)
 
     # Generate shifted queries
     shifted_queries = [normalize_pitch_sequence(query_pitches, shift) for shift in range(-2, 3)]
