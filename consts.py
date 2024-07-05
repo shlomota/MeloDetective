@@ -17,7 +17,7 @@ def get_or_create_collection(client, collection_name="midi_chunks"):
     return collection
 
 # Initialize the collection
-MIDIS_COLLECTION = CHROMA_CLIENT.get_or_create_collection("midi_chunks", metric='cosine', metadata={"hnsw:M": 64})
+MIDIS_COLLECTION = CHROMA_CLIENT.get_or_create_collection("midi_chunks", metadata={"hnsw:M": 64, "hnsw:space": "cosine"})
 
 SAMPLE_QUERIES_DIR = "/home/ubuntu/MeloDetective/data/sample_queries"
 LIBRARY_DIR = "/home/ubuntu/MeloDetective/data/library"
