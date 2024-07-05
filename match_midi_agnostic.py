@@ -189,25 +189,20 @@ def best_matches(query_pitches, top_n=10):
 
     process_chunk_partial = partial(process_chunk_dtw, query_pitches=query_pitches)
     with concurrent.futures.ThreadPoolExecutor() as executor:
-        dtw_scores = list(executor.map(process_chunk_partial, top_cosine_matches))
+        final_results = list(executor.map(process_chunk_partial, top_cosine_matches))
 
     end = time.time()
     if consts.DEBUG:
         logging.info(f"DTW took {end - start} seconds, on {len(top_cosine_matches)} items")
 
-    # Combine DTW results with the original data
-    combined_results = [
-        (dtw_score, match[0], match[1], match[2], match[3], match[4])
-        for dtw_score, match in zip(dtw_scores, top_cosine_matches)
-        if dtw_score is not None
-    ]
-    combined_results.sort(key=lambda x: x[1])  # Lower DTW score is better
+    final_scores = [result for result in final_results if result is not None]
+    final_scores.sort(key=lambda x: x[1])  # Lower DTW score is better
 
     # Deduplicate results
     seen_tracks = set()
     unique_final_scores = []
-    for result in combined_results:
-        track_name = result[5]
+    for result in final_scores:
+        track_name = result[-1]
         if track_name not in seen_tracks:
             unique_final_scores.append(result)
             seen_tracks.add(track_name)
@@ -218,9 +213,40 @@ def best_matches(query_pitches, top_n=10):
     if consts.DEBUG:
         logging.info("Top 30 DTW results (Track Name, Start Time, Cosine Similarity, DTW Score):")
         for result in unique_final_scores[:30]:
-            logging.info(f"{result[5]}, {result[2]}, {result[1]}, {result[0]}")
+            logging.info(f"{result[-1]}, {result[2]}, {result[0]}, {result[1]}")
 
     return unique_final_scores[:top_n]
+
+def process_chunk_dtw_neww(chunk_data, query_pitches):
+    try:
+        cosine_similarity_score, note_sequence, start_time, histogram_vector, track_name = chunk_data
+        chunk = note_sequence
+        if len(chunk) == 0 or np.isnan(chunk).all():
+            return None
+
+        normalized_chunk = normalize_pitch_sequence(chunk, 0)
+        reference_median = np.median(chunk)
+        if np.isnan(reference_median):
+            return None
+        original_median = np.median(query_pitches)
+        median_diff_semitones = int(reference_median - original_median)
+
+        best_score = float('inf')
+        best_path = None
+        best_shift = 0
+        for shift in range(-1, 2):
+            normalized_query = normalize_pitch_sequence(query_pitches, shift)
+            distance, path = weighted_dtw(normalized_query, normalized_chunk)
+            if distance < best_score:
+                best_score = distance
+                best_shift = shift
+                best_path = path
+
+        return (cosine_similarity_score, best_score, start_time, best_shift, best_path, median_diff_semitones, track_name)
+    except Exception as e:
+        logging.error(f"Error in process_chunk_dtw: {traceback.format_exc()}")
+        return None
+
 
 def best_matches_old(query_pitches, top_n=10):
     logging.info("Starting prefiltering with cosine similarity...")
