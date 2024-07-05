@@ -7,12 +7,14 @@ import os
 import hashlib
 import re
 from download_utils import download_button
-from midi_chunk_processor import best_matches, midi_to_pitches_and_times, load_chunks_from_directory
+from midi_utils import midi_to_pitches_and_times
+from match_midi_agnostic import best_matches
 from mido import MidiFile, MidiTrack, Message
 import mido
 import streamlit as st
 import consts
 from consts import LIBRARY_DIR, MIDIS_DIR, METADATA_DIR
+import shutil
 
     
 def sanitize_filename(filename):
@@ -29,7 +31,7 @@ def sanitize_filename(filename):
 def convert_to_midi(audio_file, midi_file):
     cmd = [
         "/usr/local/bin/python2", 
-        "audio_to_midi_melodia/audio_to_midi_melodia.py",
+        "/home/ubuntu/MeloDetective/audio_to_midi_melodia/audio_to_midi_melodia.py",
         audio_file,
         midi_file,
         "120",  # BPM, you might want to make this adjustable
@@ -42,6 +44,31 @@ def convert_to_midi(audio_file, midi_file):
     print(f"Running command: {' '.join(cmd)}")  # Debugging line
     subprocess.run(cmd, check=True, env=env)
     #subprocess.run(cmd, check=True)
+
+def convert_to_midi_basic(audio_file, midi_file):
+    logging.info("Using basic pitch")
+    with tempfile.TemporaryDirectory() as temp_dir:
+        cmd = [
+            "basic-pitch",  # Use the full path to basic-pitch
+            "--minimum-frequency", "80",
+            "--maximum-frequency", "900",
+            "--onset-threshold", "0.45",
+            "--minimum-note-length", "100",
+            temp_dir,
+            audio_file
+        ]
+        print(f"Running command: {' '.join(cmd)}")  # Debugging line
+        subprocess.run(cmd, check=True)
+
+        # Find the resulting MIDI file in the temporary directory
+        for file_name in os.listdir(temp_dir):
+            if file_name.endswith('.mid'):
+                temp_midi_file = os.path.join(temp_dir, file_name)
+                shutil.copy(temp_midi_file, midi_file)
+                break
+    logging.info("Done converting to midi with basicpitch")
+
+
 
 def trim_audio(audio_segment, duration_ms=20000):
     """Trim the audio to the specified duration in milliseconds."""
@@ -62,18 +89,14 @@ def process_audio(audio_file_path):
 
         # Load the query MIDI file
         query_pitches, query_times = midi_to_pitches_and_times(midi_file_path)
-        
-        # Load reference MIDI files
-        result = load_chunks_from_directory(MIDIS_DIR)
-        all_chunks, all_start_times, track_names = load_chunks_from_directory(MIDIS_DIR)
 
         st.info("Finding the best matches...")
 
         # Find best matches
         top_n = 5
         if consts.DEBUG:
-            top_n = 30
-        top_matches = best_matches(query_pitches, all_chunks, all_start_times, track_names=track_names, top_n=top_n)
+            top_n = 10
+        top_matches = best_matches(query_pitches, top_n=top_n)
 
         return top_matches, midi_file_path
     except Exception as e:

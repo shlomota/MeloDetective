@@ -10,36 +10,13 @@ import time
 import traceback
 from fastdtw import fastdtw
 import consts
+from consts import CHROMA_CLIENT, MIDIS_COLLECTION
 import concurrent.futures
 
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
-def midi_to_pitches_and_times(midi_file):
-    midi = mido.MidiFile(midi_file)
-    pitches = []
-    times = []
-    time = 0
-    for msg in midi:
-        time += msg.time
-        if msg.type == 'note_on' and msg.velocity > 0:
-            pitches.append(msg.note)
-            times.append(time)
-    return np.array(pitches), np.array(times)
-
-def split_midi(pitches, times, chunk_length, overlap):
-    chunks = []
-    start_times = []
-    num_chunks = int((times[-1] - chunk_length) // (chunk_length - overlap)) + 1
-    for i in range(num_chunks):
-        start_time = i * (chunk_length - overlap)
-        end_time = start_time + chunk_length
-        indices = np.where((times >= start_time) & (times < end_time))
-        chunk_pitches = pitches[indices]
-        chunks.append(chunk_pitches)
-        start_times.append(start_time)
-    return chunks, start_times
 
 def normalize_pitch_sequence(pitches, shift=0):
     median_pitch = np.median(pitches)
@@ -60,7 +37,7 @@ def cosine_similarity_matrix(query_hist, reference_hists):
     similarities = dot_product / (query_norm * reference_norms)
     return similarities
 
-def weighted_dtw(query_pitches, reference_chunk, stretch_penalty=0.2, threshold=5):
+def weighted_dtw(query_pitches, reference_chunk, stretch_penalty=0.2, threshold=5*10):
     distance, path = fastdtw(query_pitches, reference_chunk, dist=lambda x, y: (x - y) ** 2)
     total_distance = distance
     stretch_length = 0
@@ -131,31 +108,10 @@ def process_chunk_cosine_matrix_batch(query_hist, reference_chunks, chunk_data, 
         results.append((similarity, start_time, shift, median_diff_semitones, track_name, idx))
     return results
 
-def best_matches_cosine(query_pitches, reference_chunks, start_times, track_names, top_n=100):
-    start = time.time()
-    normalized_query_pitches = normalize_pitch_sequence(query_pitches)
-    query_hist = calculate_histogram(normalized_query_pitches)
-
-    chunk_data = [(idx, shift) for idx in range(len(reference_chunks)) for shift in range(-2, 3)]
-    batch_size = len(chunk_data) // cpu_count()  # Divide work into batches
-    chunk_batches = [chunk_data[i:i + batch_size] for i in range(0, len(chunk_data), batch_size)]
-
-    with Pool(processes=cpu_count()) as pool:
-        results = pool.starmap(process_chunk_cosine_matrix_batch, [(query_hist, reference_chunks, batch, start_times, track_names) for batch in chunk_batches])
-
-    end = time.time()
-    if consts.DEBUG:
-        st.text("Cosine similarity prefiltering took: %s" % (end - start))
-    # Flatten results
-    results = [item for sublist in results for item in sublist]
-    scores = sorted(results, key=lambda x: x[0], reverse=True)  # Higher similarity is better
-
-    return scores[:top_n]
-
 
 def process_chunk_dtw(chunk_data, query_pitches, reference_chunks):
     try:
-        cosine_similarity_score, start_time, best_shift, median_diff_semitones, track_name, idx = chunk_data
+        cosine_similarity_score, note_sequence, start_time, histogram_vector, idx, track_name = chunk_data
         chunk = reference_chunks[idx]
         if len(chunk) == 0 or np.isnan(chunk).all():
             return None
@@ -177,77 +133,82 @@ def process_chunk_dtw(chunk_data, query_pitches, reference_chunks):
                 best_shift = shift
                 best_path = path
 
-        return (cosine_similarity_score, best_score, start_time, best_shift,best_path, median_diff_semitones, track_name)
+        return (cosine_similarity_score, best_score, start_time, best_shift, best_path, median_diff_semitones, track_name)
     except Exception as e:
-        logging.error("Error in process_chunk_dtw: %s", traceback.format_exc())
+        logging.error(f"Error in process_chunk_dtw: {traceback.format_exc()}")
         return None
 
-def best_matches(query_pitches, reference_chunks, start_times, track_names, top_n=10):
-    # Step 1: Prefilter with Cosine Similarity
+def best_matches(query_pitches, top_n=10):
     logging.info("Starting prefiltering with cosine similarity...")
-    top_cosine_matches = best_matches_cosine(query_pitches, reference_chunks, start_times, track_names, top_n=500)
-    mm = [a for a in top_cosine_matches if "ebo" in a[-2]]
-    logging.info("eb matches: %s" % (mm))
 
-    # Step 2: Rerank with DTW
+    # Generate shifted queries
+    shifted_queries = [normalize_pitch_sequence(query_pitches, shift) for shift in range(-2, 3)]
+    shifted_hists = [calculate_histogram(shifted_query) for shifted_query in shifted_queries]
+
+    # Query ChromaDB for each shifted histogram
+    all_results = []
+    for hist in shifted_hists:
+        query_result = MIDIS_COLLECTION.query(
+            query_embeddings=[hist.tolist()],
+            n_results=top_n * 100  # Retrieve more for DTW re-ranking
+        )
+        logging.info(f"Query result keys: {query_result.keys()}")
+        logging.info(f"Query distances sample: {query_result['distances'][0][:5]}")
+
+        for i in range(len(query_result["documents"][0])):
+            try:
+                metadata = query_result["metadatas"][0][i]
+                similarity = 1 - query_result["distances"][0][i]
+                note_sequence = np.array(list(map(int, metadata["note_sequence"].split(','))))
+                histogram_vector = np.array(list(map(float, metadata["histogram_vector"].split(','))))
+                start_time = metadata["start_time"]
+                track_name = metadata["track_name"]
+                all_results.append((similarity, note_sequence, start_time, histogram_vector, i, track_name))
+            except (ValueError, TypeError) as e:
+                logging.error(f"Error parsing metadata for document {i}: {e}")
+                logging.error(f"Metadata content: {metadata}")
+
+    if not all_results:
+        logging.error("No valid results found in ChromaDB query.")
+        return []
+
+    # Sort results by cosine similarity
+    all_results.sort(key=lambda x: x[0], reverse=True)
+    top_cosine_matches = all_results[:top_n * 100]
+
+    # Rerank with DTW using multithreading
     logging.info("Starting reranking with DTW...")
     start = time.time()
-    process_chunk_partial = partial(process_chunk_dtw, query_pitches=query_pitches, reference_chunks=reference_chunks)
 
-    #final_results = [process_chunk_partial(match) for match in top_cosine_matches]
-    #multiprocessing
-    #with multiprocessing.Pool() as pool:
-    #    final_results = pool.map(process_chunk_partial, top_cosine_matches)
-    #multithreading
+    process_chunk_partial = partial(process_chunk_dtw, query_pitches=query_pitches, reference_chunks=[result[1] for result in top_cosine_matches])
+
     with concurrent.futures.ThreadPoolExecutor() as executor:
         final_results = list(executor.map(process_chunk_partial, top_cosine_matches))
 
     end = time.time()
     if consts.DEBUG:
-        st.text("DTW took %s seconds, on %s items" % (end - start, len(top_cosine_matches)))
+        st.text(f"DTW took {end - start} seconds, on {len(top_cosine_matches)} items")
 
     final_scores = [result for result in final_results if result is not None]
     final_scores.sort(key=lambda x: x[1])  # Lower DTW score is better
 
-	# Extract indices and corresponding elements
-    indexed_final_scores = [(index, value) for index, value in enumerate(final_scores)]
-    mm = [(index, value) for index, value in indexed_final_scores if "ebo" in value[-1]]
-    logging.info("eb matches DTW: %s" % (mm))
+    # Deduplicate results
+    seen_tracks = set()
+    unique_final_scores = []
+    for score in final_scores:
+        track_name = score[-1]
+        if track_name not in seen_tracks:
+            unique_final_scores.append(score)
+            seen_tracks.add(track_name)
+        if len(unique_final_scores) == top_n:
+            break
 
-    # Ensure unique tracks in final results
-    unique_tracks = set()
-    final_scores = [match for match in final_scores if match[-1] not in unique_tracks and not unique_tracks.add(match[-1])]
+    logging.info("Final top matches after DTW: %s", unique_final_scores)
+    return unique_final_scores
 
-    logging.info("Final top matches after DTW: %s", final_scores[:top_n])
-    return final_scores[:top_n]
 
 def format_time(seconds):
     minutes = int(seconds // 60)
     seconds = int(seconds % 60)
     return f"{minutes:02}:{seconds:02}"
-
-if __name__ == "__main__":
-    chunk_length = 20  # seconds
-    overlap = 18  # seconds
-
-    try:
-        logging.info("Loading query MIDI file...")
-        query_pitches, query_times = midi_to_pitches_and_times('query.mid')
-
-        logging.info("Loading reference MIDI file...")
-        reference_pitches, reference_times = midi_to_pitches_and_times('reference.mid')
-
-        logging.info("Splitting reference MIDI file into chunks...")
-        reference_chunks, start_times = split_midi(reference_pitches, reference_times, chunk_length, overlap)
-
-        logging.info("Finding the best matches using histogram comparison and DTW...")
-        track_names = ["Track" + str(i) for i in range(len(reference_chunks))]
-        top_matches = best_matches(query_pitches, reference_chunks, start_times, track_names, top_n=10)
-
-        for i, (cosine_similarity_score, dtw_score, start_time, shift, median_diff_semitones, track) in enumerate(top_matches):
-            logging.info(f"Match {i+1}: Cosine Similarity = {cosine_similarity_score:.2f}, DTW Score = {dtw_score:.2f}, Start time = {format_time(start_time)}, Shift = {shift} semitones, Median difference = {median_diff_semitones} semitones, Track Name = {track}")
-
-    except Exception as e:
-        logging.error("Error processing sample query: %s", traceback.format_exc())
-        st.error(f"Error processing sample query: {e}")
 
