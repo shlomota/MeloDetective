@@ -269,7 +269,7 @@ def best_matches(query_pitches, top_n=10):
     process_chunk_partial = partial(process_chunk_dtw, query_pitches=query_pitches)
     with concurrent.futures.ThreadPoolExecutor() as executor:
         dtw_scores = list(
-            executor.map(lambda match: process_chunk_partial(reference_pitches=match[1]), top_cosine_matches))
+            executor.map(lambda match: process_chunk_partial(reference_chunks=match[1]), top_cosine_matches))
 
     end = time.time()
     if consts.DEBUG:
