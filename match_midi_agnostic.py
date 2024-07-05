@@ -207,8 +207,8 @@ def best_matches(query_pitches, top_n=10):
         if track_name not in seen_tracks:
             unique_final_scores.append(score)
             seen_tracks.add(track_name)
-        if len(unique_final_scores) == top_n:
-            break
+        # if len(unique_final_scores) == top_n:
+        #     break
 
     # Log top 30 DTW results if DEBUG is True
     if consts.DEBUG:
@@ -217,7 +217,7 @@ def best_matches(query_pitches, top_n=10):
             logging.info(f"{result[-1]}, {result[0]}, {result[2]}, {result[1]}")
 
     logging.info("Final top matches after DTW: %s", unique_final_scores)
-    return unique_final_scores
+    return unique_final_scores[:top_n]
 
 
 
