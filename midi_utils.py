@@ -11,7 +11,7 @@ from tqdm import tqdm
 
 # Constants
 CHUNK_LENGTH = 20  # seconds
-OVERLAP = 19.5  # seconds
+OVERLAP = 18  # seconds
 MIN_NOTES = 20  # Minimum number of notes in a chunk
 
 def midi_to_pitches_and_times(midi_file):
