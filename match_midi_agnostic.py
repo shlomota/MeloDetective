@@ -187,36 +187,41 @@ def best_matches(query_pitches, top_n=10):
     logging.info("Starting reranking with DTW...")
     start = time.time()
 
-    process_chunk_partial = partial(process_chunk_dtw, query_pitches=query_pitches, reference_chunks=[result[1] for result in top_cosine_matches])
+    process_chunk_partial = partial(process_chunk_dtw, query_pitches=query_pitches)
 
     with concurrent.futures.ThreadPoolExecutor() as executor:
-        final_results = list(executor.map(process_chunk_partial, top_cosine_matches))
+        dtw_results = list(executor.map(process_chunk_partial, top_cosine_matches))
 
     end = time.time()
     if consts.DEBUG:
         st.text(f"DTW took {end - start} seconds, on {len(top_cosine_matches)} items")
 
-    final_scores = [result for result in final_results if result is not None]
-    final_scores.sort(key=lambda x: x[1])  # Lower DTW score is better
+    # Combine DTW results with the original data
+    final_results = [
+        (dtw_score, match[0], match[1], match[2], match[3], match[4], match[5])
+        for match, dtw_score in zip(top_cosine_matches, dtw_results)
+        if dtw_score is not None
+    ]
+    final_results.sort(key=lambda x: x[0])  # Lower DTW score is better
 
     # Deduplicate results
     seen_tracks = set()
     unique_final_scores = []
-    for score in final_scores:
-        track_name = score[-1]
+    for result in final_results:
+        track_name = result[-1]
         if track_name not in seen_tracks:
-            unique_final_scores.append(score)
+            unique_final_scores.append(result)
             seen_tracks.add(track_name)
-        # if len(unique_final_scores) == top_n:
-        #     break
 
     # Log top 30 DTW results if DEBUG is True
     if consts.DEBUG:
         logging.info("Top 30 DTW results (Track Name, Start Time, Cosine Similarity, DTW Score):")
         for result in unique_final_scores[:30]:
-            logging.info(f"{result[-1]}, {result[0]}, {result[2]}, {result[1]}")
+            logging.info(f"{result[-1]}, {result[2]}, {result[1]}, {result[0]}")
 
-    return unique_final_scores[:top_n]
+    unique_final_scores = unique_final_scores[:top_n]
+    logging.info("Final top matches after DTW: %s", unique_final_scores)
+    return unique_final_scores
 
 
 
