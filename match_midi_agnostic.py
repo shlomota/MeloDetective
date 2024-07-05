@@ -177,6 +177,12 @@ def best_matches(query_pitches, top_n=10):
     all_results.sort(key=lambda x: x[0], reverse=True)
     top_cosine_matches = all_results[:top_n * 100]
 
+    # Log top 20 cosine matches if DEBUG is True
+    if consts.DEBUG:
+        logging.info("Top 20 cosine matches (Track Name, Start Time, Cosine Similarity):")
+        for match in top_cosine_matches[:20]:
+            logging.info(f"{match[5]}, {match[2]}, {match[0]}")
+
     # Rerank with DTW using multithreading
     logging.info("Starting reranking with DTW...")
     start = time.time()
@@ -204,8 +210,15 @@ def best_matches(query_pitches, top_n=10):
         if len(unique_final_scores) == top_n:
             break
 
+    # Log top 30 DTW results if DEBUG is True
+    if consts.DEBUG:
+        logging.info("Top 30 DTW results (Track Name, Start Time, Cosine Similarity, DTW Score):")
+        for result in unique_final_scores[:30]:
+            logging.info(f"{result[-1]}, {result[0]}, {result[2]}, {result[1]}")
+
     logging.info("Final top matches after DTW: %s", unique_final_scores)
     return unique_final_scores
+
 
 
 def format_time(seconds):
