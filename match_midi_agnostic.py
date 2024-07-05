@@ -187,7 +187,7 @@ def best_matches(query_pitches, top_n=10):
     logging.info("Starting reranking with DTW...")
     start = time.time()
 
-    process_chunk_partial = partial(process_chunk_dtw, query_pitches=query_pitches)
+    process_chunk_partial = partial(process_chunk_dtw, query_pitches=query_pitches, reference_chunks=reference_chunks)
 
     with concurrent.futures.ThreadPoolExecutor() as executor:
         dtw_results = list(executor.map(process_chunk_partial, top_cosine_matches))
