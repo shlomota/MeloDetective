@@ -6,8 +6,4 @@ METADATA_DIR = "/home/ubuntu/MeloDetective/data/metadata"
 LOG_DIR = "logs"
 CHUNKS_DIR = "/home/ubuntu/MeloDetective/data/chunks"
 
-# Check if 'debug' parameter is set to '1'
-query_params = st.experimental_get_query_params()
 DEBUG = False
-#if query_params.get('debug') == ['1']:
-#    DEBUG = True

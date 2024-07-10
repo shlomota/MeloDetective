@@ -186,6 +186,9 @@ def best_matches(query_pitches, reference_chunks, start_times, track_names, top_
     # Step 1: Prefilter with Cosine Similarity
     logging.info("Starting prefiltering with cosine similarity...")
     top_cosine_matches = best_matches_cosine(query_pitches, reference_chunks, start_times, track_names, top_n=500)
+    if consts.DEBUG:
+        for i in range(20):
+            logging.info(top_cosine_matches[i])
     mm = [a for a in top_cosine_matches if "ebo" in a[-2]]
     logging.info("eb matches: %s" % (mm))
 
@@ -194,11 +197,6 @@ def best_matches(query_pitches, reference_chunks, start_times, track_names, top_
     start = time.time()
     process_chunk_partial = partial(process_chunk_dtw, query_pitches=query_pitches, reference_chunks=reference_chunks)
 
-    #final_results = [process_chunk_partial(match) for match in top_cosine_matches]
-    #multiprocessing
-    #with multiprocessing.Pool() as pool:
-    #    final_results = pool.map(process_chunk_partial, top_cosine_matches)
-    #multithreading
     with concurrent.futures.ThreadPoolExecutor() as executor:
         final_results = list(executor.map(process_chunk_partial, top_cosine_matches))
 
@@ -217,8 +215,10 @@ def best_matches(query_pitches, reference_chunks, start_times, track_names, top_
     # Ensure unique tracks in final results
     unique_tracks = set()
     final_scores = [match for match in final_scores if match[-1] not in unique_tracks and not unique_tracks.add(match[-1])]
-
-    logging.info("Final top matches after DTW: %s", final_scores[:top_n])
+    if consts.DEBUG:
+        logging.info("Final top matches after DTW")
+        for i in range(20):
+            logging.info(final_scores[i])
     return final_scores[:top_n]
 
 def format_time(seconds):
