@@ -237,8 +237,9 @@ def main():
     st.markdown(
         """
         <div style='text-align: center; padding-top: 20px;'>
-            Made by <a href="https://www.linkedin.com/in/shlomo-tannor-aa967a1a8/" target="_blank">Shlomo Tannor</a> |
-            <a href="https://github.com/shlomota/MeloDetective" target="_blank">GitHub</a>
+Made by <a href="https://www.linkedin.com/in/shlomo-tannor-aa967a1a8/" target="_blank">Shlomo Tannor</a> |
+<a href="https://medium.com/@stannor/shazam-for-melodies-how-i-built-melodetective-with-vector-search-and-dtw-7185f54dcb56" target="_blank">Read more on Medium</a> |
+<a href="https://github.com/shlomota/MeloDetective" target="_blank">GitHub</a>
         </div>
         """,
         unsafe_allow_html=True
