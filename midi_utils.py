@@ -2,6 +2,7 @@ import streamlit as st
 from midi2audio import FluidSynth
 import tempfile
 from pydub import AudioSegment
+import os
 
 
 def play_midi(midi_path):
