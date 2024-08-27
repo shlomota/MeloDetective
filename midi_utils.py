@@ -2,6 +2,7 @@ import streamlit as st
 from midi2audio import FluidSynth
 import tempfile
 from pydub import AudioSegment
+from consts import CHUNKS_DIR
 import os
 
 
