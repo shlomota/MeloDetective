@@ -1,6 +1,6 @@
 import streamlit as st
-from utils import display_results, setup_logger
-from midi_utils import play_midi, download_button
+from utils import setup_logger
+from midi_utils import play_midi, download_button, display_results
 from file_utils import load_sample_queries
 from audio_processing import process_audio
 import tempfile
@@ -62,7 +62,7 @@ def main():
                 download_button(open(query_midi_path, "rb").read(), "query.mid", "Download Query MIDI")
 
                 if top_matches:
-                    display_results(top_matches, query_midi_path)
+                    display_results(top_matches, query_midi_path, debug=debug_option)
                 st.write(f"Completed processing in {time.time() - start_time:.2f} seconds.")
             except Exception as e:
                 print(traceback.format_exc())
@@ -93,7 +93,7 @@ def main():
                 download_button(open(query_midi_path, "rb").read(), "query.mid", "Download Query MIDI")
 
                 if top_matches:
-                    display_results(top_matches, query_midi_path)
+                    display_results(top_matches, query_midi_path, debug=debug_option)
             except Exception as e:
                 print(traceback.format_exc())
                 st.error(f"Error processing sample query: {e}")
