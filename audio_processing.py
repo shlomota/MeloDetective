@@ -45,6 +45,45 @@ def trim_audio(audio_segment, duration_ms=20000):
     return audio_segment[:duration_ms]
 
 
+def trim_midi(midi_file_path, duration=20):
+    """Extract the first 20 seconds from a MIDI file."""
+    try:
+        midi = MidiFile(midi_file_path)
+        trimmed_midi = MidiFile()
+
+        # Get the ticks per beat from the MIDI file
+        ticks_per_beat = midi.ticks_per_beat
+
+        # Default tempo is 500000 microseconds per beat if not specified
+        tempo = 500000
+
+        for track in midi.tracks:
+            new_track = MidiTrack()
+            current_time = 0
+            for msg in track:
+                if msg.type == 'set_tempo':
+                    tempo = msg.tempo
+
+                # Convert ticks to seconds
+                time_in_seconds = mido.tick2second(msg.time, ticks_per_beat, tempo)
+                current_time += time_in_seconds
+
+                if current_time <= duration:
+                    new_track.append(msg)
+                else:
+                    break
+
+            trimmed_midi.tracks.append(new_track)
+
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".mid") as temp_trimmed_midi:
+            trimmed_midi.save(temp_trimmed_midi.name)
+            return temp_trimmed_midi.name
+
+    except Exception as e:
+        print(f"Error trimming MIDI file: {e}")
+        return midi_file_path
+
+
 def process_audio(audio_file_path):
     if not os.path.exists(MIDIS_DIR):
         os.makedirs(MIDIS_DIR)
@@ -53,14 +92,21 @@ def process_audio(audio_file_path):
     file_extension = os.path.splitext(audio_file_path)[-1].lower()
 
     if file_extension in ['.mid', '.midi']:
-        # The file is already a MIDI file
-        midi_file_path = audio_file_path
+        # The file is already a MIDI file, trim it to the first 20 seconds
+        midi_file_path = trim_midi(audio_file_path)
     else:
-        # The file is not a MIDI file, so we need to convert it
+        # The file is an audio file, trim it to the first 20 seconds
+        audio_segment = AudioSegment.from_file(audio_file_path)
+        trimmed_audio = trim_audio(audio_segment)
+
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as temp_trimmed_audio:
+            trimmed_audio.export(temp_trimmed_audio.name, format="wav")
+            trimmed_audio_path = temp_trimmed_audio.name
+
         with tempfile.NamedTemporaryFile(delete=False, suffix=".mid") as temp_midi:
             midi_file_path = temp_midi.name
         try:
-            convert_to_midi(audio_file_path, midi_file_path)
+            convert_to_midi(trimmed_audio_path, midi_file_path)
             st.success("Audio converted to MIDI successfully!")
             download_str = download_button(open(midi_file_path, "rb").read(), "query.mid", "Download Query MIDI")
             st.markdown(download_str, unsafe_allow_html=True)
@@ -79,9 +125,9 @@ def process_audio(audio_file_path):
         st.info("Finding the best matches...")
 
         # Find best matches
-        top_n = 10
+        top_n = 5
         if consts.DEBUG:
-            top_n = 20
+            top_n = 30
         top_matches = best_matches(query_pitches, all_chunks, all_start_times, track_names=track_names, top_n=top_n)
 
         return top_matches, midi_file_path
