@@ -14,7 +14,7 @@ import consts
 # Set page configuration
 st.set_page_config(
     initial_sidebar_state="collapsed",  # Sidebar is collapsed by default
-    page_title="Carlebot",
+    page_title="Niggun Detector",  # Page title
 )
 
 # Ensure all required directories exist
@@ -27,19 +27,27 @@ for dir_path in required_dirs:
 def search_songs(query, songs):
     return [song for song in songs if query.lower() in song.lower()]
 
+def get_sorted_files_by_mod_time(directory):
+    # Get the list of files and their modification times
+    files = [(file, os.path.getmtime(os.path.join(directory, file))) for file in os.listdir(directory)]
+    # Sort files by modification time (latest to earliest)
+    sorted_files = sorted(files, key=lambda x: x[1], reverse=True)
+    # Extract just the filenames
+    sorted_filenames = [file[0] for file in sorted_files]
+    return sorted_filenames
 
 def remove_file_extension(filename):
     return os.path.splitext(filename)[0].replace("--", "/")
 
 
 def load_sample_queries():
-    sample_queries = [os.path.splitext(f)[0] for f in os.listdir(SAMPLE_QUERIES_DIR) if f.endswith('.mid')]
+    sample_queries = get_sorted_files_by_mod_time(SAMPLE_QUERIES_DIR)
     sample_queries_display = ["Select your query"] + [remove_file_extension(file) for file in sample_queries]
     return sample_queries, sample_queries_display
 
 
 def main():
-    st.title("CarleBot: A Carlebach Tune Detector")
+    st.title("Niggun Detector")
 
     # Create tabs for different options
     musical_note = "\U0001F3B5"
