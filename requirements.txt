@@ -9,3 +9,5 @@ streamlit
 pydub
 midiutil
 streamlit-mic-recorder
+midi2audio
+music21
