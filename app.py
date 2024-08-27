@@ -1,82 +1,146 @@
-import os
 import streamlit as st
-import logging
+from streamlit_mic_recorder import mic_recorder
+import traceback
+import time
+import tempfile
+import io
+import os
+from pydub import AudioSegment
+from audio_processing import trim_audio, process_audio, extract_vocals, convert_to_midi
 from utils import display_results
-from audio_processing import convert_to_midi, extract_midi_chunk, save_midi_chunk, extract_vocals
-from consts import SAMPLE_QUERIES_DIR, LIBRARY_DIR, MIDIS_DIR, LOG_DIR, CHUNKS_DIR
+from consts import SAMPLE_QUERIES_DIR, LIBRARY_DIR, MIDIS_DIR, LOG_DIR
+import consts
 
-# Set up logging
-log_file = os.path.join(LOG_DIR, 'app.log')
-logging.basicConfig(filename=log_file, level=logging.INFO)
+# Set page configuration
+st.set_page_config(
+    initial_sidebar_state="collapsed",  # Sidebar is collapsed by default
+    page_title="Carlebot",
+)
 
-# Streamlit app layout
-st.title("MIDI and Singing/Humming Query by Humming/Singing")
+# Ensure all required directories exist
+required_dirs = [LIBRARY_DIR, MIDIS_DIR, LOG_DIR]
+for dir_path in required_dirs:
+    if not os.path.exists(dir_path):
+        os.makedirs(dir_path)
 
-st.sidebar.header("Upload MIDI or WAV File")
-file_type = st.sidebar.radio("Choose the type of file to upload:", ("MIDI", "WAV"))
 
-uploaded_file = st.sidebar.file_uploader(f"Choose a {file_type} file", type=["mid", "midi"] if file_type == "MIDI" else ["wav"])
+def search_songs(query, songs):
+    return [song for song in songs if query.lower() in song.lower()]
 
-if uploaded_file is not None:
-    st.sidebar.write(f"Uploaded {file_type} file: {uploaded_file.name}")
 
-    if file_type == "MIDI":
-        # Save uploaded MIDI file
-        midi_path = os.path.join(SAMPLE_QUERIES_DIR, uploaded_file.name)
-        with open(midi_path, "wb") as f:
-            f.write(uploaded_file.getbuffer())
+def remove_file_extension(filename):
+    return os.path.splitext(filename)[0].replace("--", "/")
 
-        st.sidebar.write(f"MIDI file saved to: {midi_path}")
 
-        # Process the uploaded MIDI file (e.g., extract chunks, compare with library)
-        st.write(f"Processing uploaded MIDI file: {uploaded_file.name}")
+def load_sample_queries():
+    sample_queries = [os.path.splitext(f)[0] for f in os.listdir(SAMPLE_QUERIES_DIR) if f.endswith('.mid')]
+    sample_queries_display = ["Select your query"] + [remove_file_extension(file) for file in sample_queries]
+    return sample_queries, sample_queries_display
 
-        # Example: Extract MIDI chunk and save it
-        start_time = 0  # Placeholder, you may extract the start time dynamically
-        chunk = extract_midi_chunk(midi_path, start_time)
-        if chunk:
-            chunk_path = os.path.join(CHUNKS_DIR, f"{uploaded_file.name}_chunk.mid")
-            save_midi_chunk(chunk, chunk_path)
-            st.write(f"MIDI chunk extracted and saved to: {chunk_path}")
-        else:
-            st.write("No chunk extracted from the uploaded MIDI file.")
 
-    elif file_type == "WAV":
-        # Save uploaded WAV file
-        wav_path = os.path.join(SAMPLE_QUERIES_DIR, uploaded_file.name)
-        with open(wav_path, "wb") as f:
-            f.write(uploaded_file.getbuffer())
+def main():
+    st.title("CarleBot: A Carlebach Tune Detector")
 
-        st.sidebar.write(f"WAV file saved to: {wav_path}")
+    # Create tabs for different options
+    musical_note = "\U0001F3B5"
+    microphone = "\U0001F3A4"
+    tab1, tab2, tab3 = st.tabs(["Upload MIDI", f"{musical_note}Sing/Hum{microphone}", "Use a Sample"])
 
-        # Process the uploaded WAV file: Extract vocals and convert to MIDI
-        st.write(f"Processing uploaded WAV file: {uploaded_file.name}")
-        vocals_path = os.path.join(LIBRARY_DIR, f"{uploaded_file.name}_vocals.wav")
-        extract_vocals(wav_path, vocals_path)
+    with tab1:
+        st.write("Upload your MIDI file (first 20 seconds will be used)")
+        midi_file = st.file_uploader("Choose a MIDI file", type=['mid', 'midi'])
 
-        midi_path = os.path.join(MIDIS_DIR, f"{uploaded_file.name}.mid")
-        convert_to_midi(vocals_path, midi_path)
-        st.write(f"Converted WAV to MIDI and saved to: {midi_path}")
+        if midi_file is not None:
+            start_time = time.time()
+            st.write("Uploading and processing the file...")
 
-        # Example: Extract MIDI chunk and save it
-        start_time = 0  # Placeholder, you may extract the start time dynamically
-        chunk = extract_midi_chunk(midi_path, start_time)
-        if chunk:
-            chunk_path = os.path.join(CHUNKS_DIR, f"{uploaded_file.name}_chunk.mid")
-            save_midi_chunk(chunk, chunk_path)
-            st.write(f"MIDI chunk extracted and saved to: {chunk_path}")
-        else:
-            st.write("No chunk extracted from the converted MIDI file.")
+            # Save the uploaded file to a temporary file
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".mid") as tmp_file:
+                tmp_file.write(midi_file.getvalue())
+                tmp_file_path = tmp_file.name
 
-    # Assuming `display_results` will now display chunks directly
-    # You need to define top_matches with your matching logic
-    top_matches = [
-        # This is an example; replace it with your actual matching logic
-        (0.95, 0.87, 0, 0, None, 0.0, uploaded_file.name)
-    ]
-    display_results(top_matches, midi_path)
+            st.write(f"Uploaded file in {time.time() - start_time:.2f} seconds.")
 
-else:
-    st.write(f"Please upload a {file_type} file to begin processing.")
+            # Process the MIDI file and display results
+            try:
+                start_time = time.time()
 
-# Optional: Additional UI elements for user interaction
+                st.write(f"Processing MIDI file: {midi_file.name}")
+
+                # Process the MIDI file
+                top_matches, query_midi_path = process_audio(tmp_file_path)
+                if top_matches:
+                    display_results(top_matches, query_midi_path)
+                st.write(f"Completed processing in {time.time() - start_time:.2f} seconds.")
+            except Exception as e:
+                print(traceback.format_exc())
+                st.error(f"Error processing MIDI file: {e}")
+            finally:
+                # Clean up the temporary file
+                os.unlink(tmp_file_path)
+
+    with tab2:
+        st.write("Record 20 seconds of audio directly:")
+        # Record audio using mic_recorder
+        audio = mic_recorder(
+            start_prompt="Start Recording",
+            stop_prompt="Stop Recording",
+            just_once=True,
+            format="webm",
+            key='recorder'
+        )
+
+        # If audio data is available, save it and play it back
+        if audio:
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".webm") as tmp_file:
+                tmp_file.write(audio['bytes'])
+                tmp_file_path = tmp_file.name
+
+            # Convert webm to wav using pydub
+            audio_segment = AudioSegment.from_file(tmp_file_path, format="webm")
+            wav_tmp_file_path = tmp_file_path.replace(".webm", ".wav")
+            audio_segment.export(wav_tmp_file_path, format="wav")
+
+            st.audio(wav_tmp_file_path, format="audio/wav")
+
+            # Process the audio file and display results
+            top_matches, query_midi_path = process_audio(wav_tmp_file_path)
+            if top_matches:
+                display_results(top_matches, query_midi_path)
+
+    with tab3:
+        st.write("Select a sample query:")
+        sample_queries, sample_queries_display = load_sample_queries()
+
+        selected_query = st.selectbox("Select a sample query", sample_queries_display)
+
+        # Only process if a query is selected
+        if selected_query != "Select your query":
+            query_path = os.path.join(SAMPLE_QUERIES_DIR,
+                                      sample_queries[sample_queries_display.index(selected_query) - 1])
+
+            st.write(f"Processing sample query: {selected_query}")
+            try:
+                # Process the sample MIDI file
+                top_matches, query_midi_path = process_audio(query_path)
+                if top_matches:
+                    display_results(top_matches, query_midi_path)
+            except Exception as e:
+                print(traceback.format_exc())
+                st.error(f"Error processing sample query: {e}")
+
+    # Add footer with hyperlink
+    st.markdown(
+        """
+        <div style='text-align: center; padding-top: 20px;'>
+Made by <a href="https://www.linkedin.com/in/shlomo-tannor-aa967a1a8/" target="_blank">Shlomo Tannor</a> |
+<a href="https://medium.com/@stannor/shazam-for-melodies-how-i-built-melodetective-with-vector-search-and-dtw-7185f54dcb56" target="_blank">Read more on Medium</a> |
+<a href="https://github.com/shlomota/MeloDetective" target="_blank">GitHub</a>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+
+if __name__ == "__main__":
+    main()
