@@ -79,9 +79,9 @@ def process_audio(audio_file_path):
         st.info("Finding the best matches...")
 
         # Find best matches
-        top_n = 5
+        top_n = 10
         if consts.DEBUG:
-            top_n = 30
+            top_n = 20
         top_matches = best_matches(query_pitches, all_chunks, all_start_times, track_names=track_names, top_n=top_n)
 
         return top_matches, midi_file_path
