@@ -64,7 +64,7 @@ def process_audio(audio_file_path):
         query_pitches, query_times = midi_to_pitches_and_times(midi_file_path)
         
         # Load reference MIDI files
-        result = load_chunks_from_directory(MIDIS_DIR)
+        # result = load_chunks_from_directory(MIDIS_DIR)
         all_chunks, all_start_times, track_names = load_chunks_from_directory(MIDIS_DIR)
 
         st.info("Finding the best matches...")
