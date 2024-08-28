@@ -40,11 +40,11 @@ def display_results(top_matches, query_midi_path, debug=False):
 
             # Only attempt to download or play if the chunk file exists
             if os.path.exists(chunk_path):
-                st.markdown(midi_download_str, unsafe_allow_html=True)
                 # Play the MIDI result
                 play_midi(chunk_path)
                 midi_download_str = download_button(open(chunk_path, "rb").read(), f"{track}_chunk.mid",
                                                     "Download Result MIDI Chunk")
+                st.markdown(midi_download_str, unsafe_allow_html=True)
             else:
                 st.write(f"Chunk file {chunk_path} not found.")
         else:
