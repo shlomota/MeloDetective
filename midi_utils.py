@@ -2,7 +2,7 @@ import streamlit as st
 from midi2audio import FluidSynth
 import tempfile
 from pydub import AudioSegment
-from consts import CHUNKS_DIR
+from consts import CHUNKS_DIR, MIDIS_DIR
 import os
 import uuid
 from audio_processing import extract_midi_chunk, save_midi_chunk
@@ -28,33 +28,47 @@ def play_midi(midi_path):
 def download_button(data, filename, text):
     st.download_button(label=text, data=data, file_name=filename, mime='application/octet-stream')
 
+
+def find_midi_file(track_name):
+    midi_path = os.path.join(MIDIS_DIR, f"{track_name}.mid")
+    if os.path.exists(midi_path):
+        return midi_path
+    else:
+        st.write(f"MIDI file for {track_name} not found in {MIDIS_DIR}.")
+        return None
+
 def display_results(top_matches, query_midi_path, debug=False):
     st.subheader("Top Matches:")
 
     for i, match in enumerate(top_matches):
-        cosine_similarity_score, dtw_score, start_time, shift, path, median_diff_semitones, track = match
+        cosine_similarity_score, dtw_score, start_time, shift, path, median_diff_semitones, track_name = match
 
-        st.markdown(f"**Match {i + 1}:** {track}")
+        st.markdown(f"**Match {i + 1}:** {track_name}")
         st.write(
             f"Cosine Similarity Score: {cosine_similarity_score:.2f}, DTW Score: {dtw_score:.2f}, Start time: {start_time:.2f}, Shift: {shift} semitones, Median difference: {median_diff_semitones} semitones")
 
-        # Ensure that the MIDI chunk is created before proceeding
-        chunk = extract_midi_chunk(query_midi_path, start_time)
-        if chunk:
-            chunk_path = os.path.join(CHUNKS_DIR, f"{track}_chunk_{i}.mid")
-            save_midi_chunk(chunk, chunk_path)
+        # Find the MIDI file using track_name
+        midi_file_path = find_midi_file(track_name)
+        if midi_file_path:
+            # Extract a 20-second chunk from the matched MIDI file
+            chunk = extract_midi_chunk(midi_file_path, start_time, duration=20)
+            if chunk:
+                chunk_path = os.path.join(CHUNKS_DIR, f"{track_name}_chunk_{i}.mid")
+                save_midi_chunk(chunk, chunk_path)
 
-            # Only attempt to download or play if the chunk file exists
-            if os.path.exists(chunk_path):
-                # Play the MIDI result
-                play_midi(chunk_path)
-                midi_download_str = download_button(open(chunk_path, "rb").read(), f"{track}_chunk.mid",
-                                                    "Download Result MIDI Chunk")
-                st.markdown(midi_download_str, unsafe_allow_html=True)
+                # Only attempt to download or play if the chunk file exists
+                if os.path.exists(chunk_path):
+                    # Play the MIDI result
+                    play_midi(chunk_path)
+                    midi_download_str = download_button(open(chunk_path, "rb").read(), f"{track_name}_chunk.mid",
+                                                        "Download Result MIDI Chunk")
+                    st.markdown(midi_download_str, unsafe_allow_html=True)
+                else:
+                    st.write(f"Chunk file {chunk_path} not found.")
             else:
-                st.write(f"Chunk file {chunk_path} not found.")
+                st.write(f"Failed to extract chunk for {track_name}.")
         else:
-            st.write(f"Failed to extract chunk for {track}.")
+            st.write(f"Failed to locate MIDI file for {track_name}.")
 
         if debug:
             display_path(path)
