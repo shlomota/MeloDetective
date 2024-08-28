@@ -4,12 +4,14 @@ import tempfile
 from pydub import AudioSegment
 from consts import CHUNKS_DIR
 import os
+πimport uuid
 from audio_processing import extract_midi_chunk, save_midi_chunk
 from utils import display_path
 
 def play_midi(midi_path):
     soundfont = "/usr/share/sounds/sf2/FluidR3_GM.sf2"  # Path to your soundfont file
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp_wav:
+    unique_id = uuid.uuid4()  # Generate a unique identifier for the temporary file
+    with tempfile.NamedTemporaryFile(delete=False, suffix=f"_{unique_id}.wav") as tmp_wav:
         fs = FluidSynth(sound_font=soundfont)
         fs.midi_to_audio(midi_path, tmp_wav.name)
 
@@ -19,6 +21,9 @@ def play_midi(midi_path):
         louder_audio.export(tmp_wav.name, format="wav")
 
         st.audio(tmp_wav.name, format="audio/wav")
+
+    # Clean up the temporary file
+    os.remove(tmp_wav.name)
 
 def download_button(data, filename, text):
     st.download_button(label=text, data=data, file_name=filename, mime='application/octet-stream')

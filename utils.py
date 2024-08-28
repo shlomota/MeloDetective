@@ -39,26 +39,6 @@ def display_path(path):
         st.image(tmpfile_path)
         plt.close()
 
-def display_results(top_matches, query_midi_path):
-    st.subheader("Top Matches:")
-
-    for i, match in enumerate(top_matches):
-        cosine_similarity_score, dtw_score, start_time, shift, path, median_diff_semitones, track = match
-
-        st.markdown(f"**Match {i+1}:** {track}")
-        st.write(f"Cosine Similarity Score: {cosine_similarity_score:.2f}, DTW Score: {dtw_score:.2f}, Start time: {start_time:.2f}, Shift: {shift} semitones, Median difference: {median_diff_semitones} semitones")
-
-        midi_path = os.path.join(MIDIS_DIR, f"{track}.mid")
-        chunk = extract_midi_chunk(midi_path, start_time)
-        if chunk:
-            chunk_path = os.path.join(CHUNKS_DIR, f"{track}_chunk.mid")
-            save_midi_chunk(chunk, chunk_path)
-            midi_download_str = download_button(open(chunk_path, "rb").read(), f"{track}_chunk.mid", "Download Result MIDI Chunk")
-            st.markdown(midi_download_str, unsafe_allow_html=True)
-        else:
-            st.write(f"No chunk extracted for track: {track}")
-
-        display_path(path)
 
 def process_and_add_to_library(url):
     def background_process(url, logger):
