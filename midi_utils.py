@@ -5,6 +5,7 @@ from pydub import AudioSegment
 from consts import CHUNKS_DIR
 import os
 from audio_processing import extract_midi_chunk, save_midi_chunk
+from utils import display_path
 
 def play_midi(midi_path):
     soundfont = "/usr/share/sounds/sf2/FluidR3_GM.sf2"  # Path to your soundfont file
