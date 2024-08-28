@@ -40,20 +40,14 @@ def main():
 
         if midi_file is not None:
             start_time = time.time()
-            st.write("Uploading and processing the file...")
-
             # Save the uploaded file to a temporary file
             with tempfile.NamedTemporaryFile(delete=False, suffix=".mid") as tmp_file:
                 tmp_file.write(midi_file.getvalue())
                 tmp_file_path = tmp_file.name
 
-            st.write(f"Uploaded file in {time.time() - start_time:.2f} seconds.")
-
             # Process the MIDI file and display results
             try:
                 start_time = time.time()
-
-                st.write(f"Processing MIDI file: {midi_file.name}")
 
                 # Process the MIDI file
                 top_matches, query_midi_path = process_audio(tmp_file_path)
