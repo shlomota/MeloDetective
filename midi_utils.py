@@ -5,7 +5,6 @@ from pydub import AudioSegment
 from consts import CHUNKS_DIR
 import os
 
-
 def play_midi(midi_path):
     soundfont = "/usr/share/sounds/sf2/FluidR3_GM.sf2"  # Path to your soundfont file
     with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp_wav:
@@ -19,10 +18,8 @@ def play_midi(midi_path):
 
         st.audio(tmp_wav.name, format="audio/wav")
 
-
 def download_button(data, filename, text):
     st.download_button(label=text, data=data, file_name=filename, mime='application/octet-stream')
-
 
 def display_results(top_matches, query_midi_path, debug=False):
     st.subheader("Top Matches:")
@@ -34,15 +31,25 @@ def display_results(top_matches, query_midi_path, debug=False):
         st.write(
             f"Cosine Similarity Score: {cosine_similarity_score:.2f}, DTW Score: {dtw_score:.2f}, Start time: {start_time:.2f}, Shift: {shift} semitones, Median difference: {median_diff_semitones} semitones")
 
-        midi_path = f"{query_midi_path}_chunk_{i}.mid"
-        chunk_path = os.path.join(CHUNKS_DIR, midi_path)
-        midi_download_str = download_button(open(chunk_path, "rb").read(), f"{track}_chunk.mid",
-                                            "Download Result MIDI Chunk")
-        st.markdown(midi_download_str, unsafe_allow_html=True)
+        # Ensure that the MIDI chunk is created before proceeding
+        chunk = extract_midi_chunk(query_midi_path, start_time)
+        if chunk:
+            chunk_path = os.path.join(CHUNKS_DIR, f"{track}_chunk_{i}.mid")
+            save_midi_chunk(chunk, chunk_path)
 
-        # Play the MIDI result
-        st.write(f"Playing result {i + 1}:")
-        play_midi(chunk_path)
+            # Only attempt to download or play if the chunk file exists
+            if os.path.exists(chunk_path):
+                midi_download_str = download_button(open(chunk_path, "rb").read(), f"{track}_chunk.mid",
+                                                    "Download Result MIDI Chunk")
+                st.markdown(midi_download_str, unsafe_allow_html=True)
+
+                # Play the MIDI result
+                st.write(f"Playing result {i + 1}:")
+                play_midi(chunk_path)
+            else:
+                st.write(f"Chunk file {chunk_path} not found.")
+        else:
+            st.write(f"Failed to extract chunk for {track}.")
 
         if debug:
             display_path(path)
