@@ -4,7 +4,7 @@ import tempfile
 from pydub import AudioSegment
 from consts import CHUNKS_DIR
 import os
-πimport uuid
+import uuid
 from audio_processing import extract_midi_chunk, save_midi_chunk
 from utils import display_path
 
