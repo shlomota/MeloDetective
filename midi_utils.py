@@ -66,7 +66,7 @@ def display_results(top_matches, query_midi_path, debug=False):
                 if os.path.exists(chunk_path):
                     # Layout: Play MIDI on the left, image on the right
                     with st.container():
-                        col1, col2 = st.columns([2, 1])
+                        col1, col2 = st.columns([1, 2])
                         with col1:
                             play_midi(chunk_path)
                         with col2:
