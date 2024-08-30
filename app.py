@@ -55,8 +55,18 @@ def main():
 
                 # Play and download the query MIDI
                 st.write("Query MIDI:")
-                play_midi(query_midi_path)
-                download_button(open(query_midi_path, "rb").read(), "query.mid", "Download Query MIDI")
+                with st.container():
+                    col1, col2 = st.columns([1, 1])
+                    with col1:
+                        st.write("Query MIDI:")
+                        play_midi(query_midi_path)
+                        midi_download_str = download_button(open(query_midi_path, "rb").read(), "query.mid", "Download Query MIDI")
+                        st.markdown(midi_download_str, unsafe_allow_html=True)
+                    with col2:
+                        query_image_path = os.path.join(IMAGES_DIR, f"{track_name}.jpg")
+                        logging.info(f"Result image path: {query_image_path}")
+                        if os.path.exists(query_image_path):
+                            st.image(query_image_path, caption=f"Query MIDI Notes", use_column_width=True)
 
                 if top_matches:
                     display_results(top_matches, query_midi_path, debug=debug_option)
@@ -86,8 +96,18 @@ def main():
 
                 # Play and download the query MIDI
                 st.write("Query MIDI:")
-                play_midi(query_midi_path)
-                download_button(open(query_midi_path, "rb").read(), "query.mid", "Download Query MIDI")
+                with st.container():
+                    col1, col2 = st.columns([1, 1])
+                    with col1:
+                        st.write("Query MIDI:")
+                        play_midi(query_midi_path)
+                        midi_download_str = download_button(open(query_midi_path, "rb").read(), "query.mid", "Download Query MIDI")
+                        st.markdown(midi_download_str, unsafe_allow_html=True)
+                    with col2:
+                        query_image_path = os.path.join(IMAGES_DIR, f"{track_name}.jpg")
+                        logging.info(f"Result image path: {query_image_path}")
+                        if os.path.exists(query_image_path):
+                            st.image(query_image_path, caption=f"Query MIDI Notes", use_column_width=True)
 
                 if top_matches:
                     display_results(top_matches, query_midi_path, debug=debug_option)

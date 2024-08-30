@@ -64,6 +64,9 @@ def display_results(top_matches, query_midi_path, debug=False):
                         col1, col2 = st.columns([1, 1])
                         with col1:
                             play_midi(chunk_path)
+                            midi_download_str = download_button(open(chunk_path, "rb").read(), f"{track_name}_chunk.mid", "Download Result MIDI Chunk")
+                            st.markdown(midi_download_str, unsafe_allow_html=True)
+
                         with col2:
                             result_image_path = os.path.join(IMAGES_DIR, f"{track_name}.jpg")
                             logging.info(f"Result image path: {result_image_path}")
