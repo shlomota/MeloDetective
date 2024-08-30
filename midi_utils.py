@@ -41,11 +41,6 @@ def find_midi_file(track_name):
 def display_results(top_matches, query_midi_path, debug=False):
     st.subheader("Top Matches:")
 
-    # Display the query image larger
-    query_image_path = os.path.join(IMAGES_DIR, os.path.basename(query_midi_path).replace('.mid', '.jpg'))
-    if os.path.exists(query_image_path):
-        st.image(query_image_path, caption="Query MIDI Notes", use_column_width=True)
-
     for i, match in enumerate(top_matches):
         cosine_similarity_score, dtw_score, start_time, shift, path, median_diff_semitones, track_name = match
 
