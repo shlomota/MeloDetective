@@ -42,7 +42,7 @@ def display_results(top_matches, query_midi_path, debug=False):
     st.subheader("Top Matches:")
 
     # Display the query image larger
-    query_image_path = os.path.join(IMAGES_DIR, os.path.basename(query_midi_path).replace('.mid', '.png'))
+    query_image_path = os.path.join(IMAGES_DIR, os.path.basename(query_midi_path).replace('.mid', '.jpg'))
     if os.path.exists(query_image_path):
         st.image(query_image_path, caption="Query MIDI Notes", use_column_width=True)
 
@@ -66,7 +66,7 @@ def display_results(top_matches, query_midi_path, debug=False):
                 if os.path.exists(chunk_path):
                     # Layout: Play MIDI on the left, image on the right
                     with st.container():
-                        col1, col2 = st.columns([1, 2])
+                        col1, col2 = st.columns([1, 1])
                         with col1:
                             play_midi(chunk_path)
                         with col2:
