@@ -15,7 +15,7 @@ def play_midi(midi_path):
     unique_id = uuid.uuid4()  # Generate a unique identifier for the temporary file
     with tempfile.NamedTemporaryFile(delete=False, suffix=f"_{unique_id}.wav") as tmp_wav:
         fs = FluidSynth(sound_font=soundfont)
-        fs.midi_to_audio(midi_path, tmp_wav.name, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        fs.midi_to_audio(midi_path, tmp_wav.name, verbose=False)
 
         # Increase volume using pydub
         audio = AudioSegment.from_wav(tmp_wav.name)
