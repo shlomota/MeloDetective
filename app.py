@@ -9,6 +9,7 @@ import traceback
 import consts
 import time
 import logging
+from consts import IMAGES_DIR
 
 
 # Set page configuration
@@ -58,7 +59,6 @@ def main():
                 with st.container():
                     col1, col2 = st.columns([1, 1])
                     with col1:
-                        st.write("Query MIDI:")
                         play_midi(query_midi_path)
                         midi_download_str = download_button(open(query_midi_path, "rb").read(), "query.mid", "Download Query MIDI")
                         st.markdown(midi_download_str, unsafe_allow_html=True)
@@ -99,7 +99,6 @@ def main():
                 with st.container():
                     col1, col2 = st.columns([1, 1])
                     with col1:
-                        st.write("Query MIDI:")
                         play_midi(query_midi_path)
                         midi_download_str = download_button(open(query_midi_path, "rb").read(), "query.mid", "Download Query MIDI")
                         st.markdown(midi_download_str, unsafe_allow_html=True)
