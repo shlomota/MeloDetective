@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 # Constants
 CHUNK_LENGTH = 20  # seconds
-OVERLAP = 18.5  # seconds
+OVERLAP = 15  # seconds
 
 MIN_NOTES = 20  # Minimum number of notes in a chunk
 
