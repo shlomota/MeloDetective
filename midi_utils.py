@@ -9,6 +9,7 @@ from audio_processing import extract_midi_chunk, save_midi_chunk
 from utils import display_path
 import logging
 import subprocess
+from download_utils import download_button
 
 def play_midi(midi_path):
     soundfont = "/usr/share/sounds/sf2/FluidR3_GM.sf2"  # Path to your soundfont file
@@ -26,9 +27,6 @@ def play_midi(midi_path):
 
     # Clean up the temporary file
     os.remove(tmp_wav.name)
-
-def download_button(data, filename, text):
-    st.download_button(label=text, data=data, file_name=filename, mime='application/octet-stream')
 
 def find_midi_file(track_name):
     midi_path = os.path.join(MIDIS_DIR, f"{track_name}.mid")
