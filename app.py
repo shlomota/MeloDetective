@@ -61,7 +61,8 @@ def main():
                     with col1:
                         play_midi(query_midi_path)
                         midi_download_str = download_button(open(query_midi_path, "rb").read(), "query.mid", "Download Query MIDI")
-                        st.markdown(midi_download_str, unsafe_allow_html=True)
+                        st.markdown(f"<div style='text-align: center;'>{midi_download_str}</div>",
+                                    unsafe_allow_html=True)
                     with col2:
                         track_name = os.path.basename(query_path).split(".")[0]
                         query_image_path = os.path.join(IMAGES_DIR, f"{track_name}.jpg")
@@ -102,7 +103,8 @@ def main():
                     with col1:
                         play_midi(query_midi_path)
                         midi_download_str = download_button(open(query_midi_path, "rb").read(), "query.mid", "Download Query MIDI")
-                        st.markdown(midi_download_str, unsafe_allow_html=True)
+                        st.markdown(f"<div style='text-align: center;'>{midi_download_str}</div>",
+                                    unsafe_allow_html=True)
                     with col2:
                         track_name = os.path.basename(query_path).split(".")[0]
                         query_image_path = os.path.join(IMAGES_DIR, f"{track_name}.jpg")
