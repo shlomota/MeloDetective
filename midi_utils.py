@@ -7,6 +7,7 @@ import os
 import uuid
 from audio_processing import extract_midi_chunk, save_midi_chunk
 from utils import display_path
+import logging
 
 def play_midi(midi_path):
     soundfont = "/usr/share/sounds/sf2/FluidR3_GM.sf2"  # Path to your soundfont file
@@ -69,6 +70,7 @@ def display_results(top_matches, query_midi_path, debug=False):
                             play_midi(chunk_path)
                         with col2:
                             result_image_path = os.path.join(IMAGES_DIR, f"{track_name}.jpg")
+                            logging.info(f"Result image path: {result_image_path}")
                             if os.path.exists(result_image_path):
                                 st.image(result_image_path, caption=f"{track_name} Notes", use_column_width=True)
 

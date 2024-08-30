@@ -54,11 +54,13 @@ def load_chunks_from_directory(midi_dir):
 
     midi_files = []
     for root, _, files in os.walk(midi_dir):
-        for file in files:
+        for i, file in enumerate(files):
             if file.endswith('.mid'):
                 midi_path = os.path.join(root, file)
                 track_name = os.path.splitext(file)[0]
                 midi_files.append((midi_path, track_name))
+            if i == 10:
+                break
 
     # Define the partial function for processing each MIDI file
     process_midi_partial = partial(process_midi_file, chunk_length=CHUNK_LENGTH, overlap=OVERLAP, min_notes=MIN_NOTES)
