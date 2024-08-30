@@ -66,10 +66,9 @@ def display_results(top_matches, query_midi_path, debug=False):
                     with st.container():
                         col1, col2 = st.columns([2, 1])
                         with col1:
-                            st.write(f"Playing result {i + 1}:")
                             play_midi(chunk_path)
                         with col2:
-                            result_image_path = os.path.join(IMAGES_DIR, f"{track_name}.png")
+                            result_image_path = os.path.join(IMAGES_DIR, f"{track_name}.jpg")
                             if os.path.exists(result_image_path):
                                 st.image(result_image_path, caption=f"{track_name} Notes", use_column_width=True)
 
