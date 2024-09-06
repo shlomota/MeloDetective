@@ -63,7 +63,8 @@ def main():
                         midi_download_str = download_button(open(query_midi_path, "rb").read(), "query.mid", "Download Query MIDI")
                         st.markdown(midi_download_str, unsafe_allow_html=True)
                     with col2:
-                        track_name = os.path.basename(query_path).split(".")[0]
+                        uploaded_filename = midi_file.name if hasattr(midi_file, 'name') else "unknown"
+                        track_name = os.path.splitext(uploaded_filename)[0]
                         query_image_path = os.path.join(IMAGES_DIR, f"{track_name}.jpg")
                         logging.info(f"Result image path: {query_image_path}")
                         if os.path.exists(query_image_path):
