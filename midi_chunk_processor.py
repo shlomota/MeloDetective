@@ -6,6 +6,7 @@ import streamlit as st
 import concurrent.futures
 from functools import partial
 from multiprocessing import Pool, cpu_count
+from functools import lru_cache
 
 
 #from generate_midi import generate_midi
@@ -45,6 +46,9 @@ def process_midi_file(midi_path, track_name, chunk_length, overlap, min_notes):
 
     return filtered_chunks, filtered_start_times, filtered_track_names
 
+
+
+@lru_cache(maxsize=None)
 def load_chunks_from_directory(midi_dir):
     all_chunks = []
     all_start_times = []
