@@ -44,51 +44,11 @@ def trim_audio(audio_segment, duration_ms=20000):
     """Trim the audio to the specified duration in milliseconds."""
     return audio_segment[:duration_ms]
 
-
-def trim_midi(midi_file_path, duration=20):
-    """Extract the first 20 seconds from a MIDI file."""
-    try:
-        midi = MidiFile(midi_file_path)
-        trimmed_midi = MidiFile()
-
-        # Get the ticks per beat from the MIDI file
-        ticks_per_beat = midi.ticks_per_beat
-
-        # Default tempo is 500000 microseconds per beat if not specified
-        tempo = 500000
-
-        for track in midi.tracks:
-            new_track = MidiTrack()
-            current_time = 0
-            new_track.append(mido.MetaMessage('set_tempo', tempo=tempo))  # Insert the initial tempo at the start
-
-            for msg in track:
-                if msg.type == 'set_tempo':
-                    tempo = msg.tempo
-
-                # Convert ticks to seconds
-                time_in_seconds = mido.tick2second(msg.time, ticks_per_beat, tempo)
-                current_time += time_in_seconds
-
-                if current_time <= duration:
-                    new_track.append(msg)
-                else:
-                    break
-
-            trimmed_midi.tracks.append(new_track)
-
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".mid") as temp_trimmed_midi:
-            trimmed_midi.save(temp_trimmed_midi.name)
-            return temp_trimmed_midi.name
-
-    except Exception as e:
-        print(f"Error trimming MIDI file: {e}")
-        return midi_file_path
-
 def trim_midi(midi_file_path, duration=20):
     """Extract the first 20 seconds from a MIDI file and debug tempo/timing issues."""
     try:
         midi = MidiFile(midi_file_path)
+        print(f"Ticks per beat: {midi.ticks_per_beat}")
         trimmed_midi = MidiFile(ticks_per_beat=midi.ticks_per_beat)
 
         # Default tempo is 500000 microseconds per beat if not specified
