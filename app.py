@@ -76,9 +76,7 @@ def main():
             except Exception as e:
                 print(traceback.format_exc())
                 st.error(f"Error processing MIDI file: {e}")
-            finally:
-                # Clean up the temporary file
-                os.unlink(tmp_file_path)
+
 
     with tab2:
         st.write("Select a sample query:")
