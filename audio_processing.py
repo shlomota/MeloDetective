@@ -86,7 +86,7 @@ def trim_midi(midi_file_path, duration=20):
         return midi_file_path
 
 def trim_midi(midi_file_path, duration=20):
-    """Extract the first 20 seconds from a MIDI file and remove silence at the end."""
+    """Extract the first 20 seconds from a MIDI file and debug tempo/timing issues."""
     try:
         midi = MidiFile(midi_file_path)
         trimmed_midi = MidiFile(ticks_per_beat=midi.ticks_per_beat)
@@ -97,8 +97,9 @@ def trim_midi(midi_file_path, duration=20):
         for track in midi.tracks:
             new_track = MidiTrack()
             current_time = 0
-            last_note_on_time = 0
-            new_track.append(mido.MetaMessage('set_tempo', tempo=tempo))  # Insert the initial tempo at the start
+
+            # Always add an initial tempo event at the start of the track
+            new_track.append(mido.MetaMessage('set_tempo', tempo=tempo))
 
             for msg in track:
                 if msg.type == 'set_tempo':
@@ -108,17 +109,12 @@ def trim_midi(midi_file_path, duration=20):
                 time_in_seconds = mido.tick2second(msg.time, midi.ticks_per_beat, tempo)
                 current_time += time_in_seconds
 
-                # Track the time of the last 'note_on' message to remove silence at the end
-                if msg.type == 'note_on' and msg.velocity > 0:
-                    last_note_on_time = current_time
-
                 if current_time <= duration:
                     new_track.append(msg)
                 else:
                     break
 
-            # Trim the track to the last 'note_on' event to remove silence at the end
-            trimmed_midi.tracks.append(new_track[:int(last_note_on_time * midi.ticks_per_beat / mido.second2tick(1, midi.ticks_per_beat, tempo))])
+            trimmed_midi.tracks.append(new_track)
 
         with tempfile.NamedTemporaryFile(delete=False, suffix=".mid") as temp_trimmed_midi:
             trimmed_midi.save(temp_trimmed_midi.name)
