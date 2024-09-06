@@ -177,7 +177,7 @@ def split_midi(pitches, times, chunk_length=20, overlap=10):
 def extract_midi_chunk(midi_file_path, start_time, duration=20):
     try:
         midi = MidiFile(midi_file_path)
-        chunk = MidiFile()
+        chunk = MidiFile(ticks_per_beat=midi.ticks_per_beat)
 
         # Get the ticks per beat from the MIDI file
         ticks_per_beat = midi.ticks_per_beat
