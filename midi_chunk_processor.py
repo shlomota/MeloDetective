@@ -48,7 +48,7 @@ def process_midi_file(midi_path, track_name, chunk_length, overlap, min_notes):
 
 
 
-@lru_cache(maxsize=None)
+@st.cache_data
 def load_chunks_from_directory(midi_dir):
     all_chunks = []
     all_start_times = []
