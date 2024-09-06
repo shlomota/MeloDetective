@@ -96,6 +96,10 @@ def process_audio(audio_file_path):
     if file_extension in ['.mid', '.midi']:
         # The file is already a MIDI file, trim it to the first 20 seconds
         midi_file_path = trim_midi(audio_file_path)
+        print(f"Trimmed MIDI file: {midi_file_path}")
+        midi_file_path = audio_file_path
+        print(f"Using MIDI file: {midi_file_path}")
+        # midi_file_path
 
     else:
         # The file is an audio file, trim it to the first 20 seconds
