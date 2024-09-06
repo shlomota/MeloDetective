@@ -60,6 +60,8 @@ def trim_midi(midi_file_path, duration=20):
         for track in midi.tracks:
             new_track = MidiTrack()
             current_time = 0
+            new_track.append(mido.MetaMessage('set_tempo', tempo=tempo))  # Insert the initial tempo at the start
+
             for msg in track:
                 if msg.type == 'set_tempo':
                     tempo = msg.tempo
@@ -185,6 +187,7 @@ def extract_midi_chunk(midi_file_path, start_time, duration=20):
 
         for i, track in enumerate(midi.tracks):
             new_track = MidiTrack()
+            new_track.append(mido.MetaMessage('set_tempo', tempo=tempo))  # Insert the initial tempo at the start
             current_time = 0
             for msg in track:
                 if msg.type == 'set_tempo':
