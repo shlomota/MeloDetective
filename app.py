@@ -3,7 +3,7 @@ from utils import setup_logger
 from midi_utils import play_midi, download_button, display_results, find_midi_file
 from file_utils import load_sample_queries, get_sorted_files_by_mod_time
 from audio_processing import process_audio
-from match_midi_agnostic import best_matches, midi_to_pitches_and_times, split_midi
+from match_midi_agnostic import best_matches, midi_to_pitches_and_times, split_midi, weighted_dtw
 import tempfile
 import os
 import traceback
@@ -35,7 +35,7 @@ def main():
     st.title("Niggun Detector")
 
     # Create tabs for different options
-    tab1, tab2 = st.tabs(["Upload MIDI", "Use a Sample"])
+    tab1, tab2, tab3 = st.tabs(["Upload MIDI", "Use a Sample", "Compare Two Melodies"])
 
     midi_file = None
     query_midi_path = None
@@ -121,54 +121,49 @@ def main():
                 print(traceback.format_exc())
                 st.error(f"Error processing sample query: {e}")
 
-    # "Didn't find what you're looking for?" section after both tabs
-    if query_midi_path:
-        st.write("### Didn't find what you're looking for?")
-        st.write("Search for the track that should have matched from the library:")
+    # Compare Two Melodies tab
+    with tab3:
+        st.write("### Upload Two MIDI Files to Compare")
 
-        # Load the available library tracks
-        library_tracks = get_sorted_files_by_mod_time(LIBRARY_DIR)
+        query_file = st.file_uploader("Upload the query MIDI file (first file)", type=['mid', 'midi'], key='query')
+        reference_file = st.file_uploader("Upload the reference MIDI file (second file)", type=['mid', 'midi'], key='reference')
 
-        # Create a text input for dynamic search
-        search_query = st.text_input("Search for a track", "")
+        if query_file is not None and reference_file is not None:
+            try:
+                # Save query and reference files to temporary files
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".mid") as tmp_query:
+                    tmp_query.write(query_file.getvalue())
+                    query_path = tmp_query.name
 
-        # Filter the library tracks based on the search query and limit to 10 results
-        filtered_tracks = [track for track in library_tracks if search_query.lower() in track.lower()][:10]
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".mid") as tmp_reference:
+                    tmp_reference.write(reference_file.getvalue())
+                    reference_path = tmp_reference.name
 
-        if filtered_tracks:
-            st.write("### Matching Tracks:")
-            for i, track in enumerate(filtered_tracks):
-                if st.button(f"Select track {i + 1}: {track}"):
-                    selected_track = track
-                    st.write(f"Matching against: {selected_track}")
-                    selected_track_path = os.path.join(LIBRARY_DIR, selected_track)
+                # Extract pitches and times for both files
+                query_pitches, query_times = midi_to_pitches_and_times(query_path)
+                reference_pitches, reference_times = midi_to_pitches_and_times(reference_path)
 
-                    # Process the selected track and get the best matches
-                    try:
-                        reference_pitches, reference_times = midi_to_pitches_and_times(selected_track_path)
-                        reference_chunks, start_times = split_midi(reference_pitches, reference_times, 20, 18)
+                # Perform DTW comparison between the two files
+                st.write("### Comparing the two melodies...")
+                distance, path = weighted_dtw(query_pitches, reference_pitches)
 
-                        # Use best_matches function to find the closest chunk in the selected track
-                        query_pitches, query_times = midi_to_pitches_and_times(query_midi_path)
-                        top_matches = best_matches(query_pitches, reference_chunks, start_times, [selected_track], top_n=1)
+                # Display similarity result
+                st.write(f"DTW Distance between the two melodies: {distance:.2f}")
 
-                        # Display the best matching chunk and similarity score
-                        if top_matches:
-                            best_match = top_matches[0]
-                            st.write(f"Best match from {selected_track}:")
-                            st.write(f"Cosine Similarity: {best_match[0]:.2f}, DTW Score: {best_match[1]:.2f}, Start Time: {best_match[2]}s, Shift: {best_match[3]} semitones")
+                # Optionally play the uploaded files
+                st.write("### Listen to the Query and Reference MIDI:")
+                col1, col2 = st.columns([1, 1])
 
-                            # Optionally play and download the matched chunk
-                            best_chunk_path = find_midi_file(selected_track)
-                            if best_chunk_path:
-                                play_midi(best_chunk_path)
-                                midi_download_str = download_button(open(best_chunk_path, "rb").read(), f"{selected_track}_best_chunk.mid", "Download Best Match MIDI")
-                                st.markdown(midi_download_str, unsafe_allow_html=True)
+                with col1:
+                    st.write("Query MIDI:")
+                    play_midi(query_path)
 
-                    except Exception as e:
-                        st.error(f"Error processing the selected track: {e}")
-        else:
-            st.write("No tracks found.")
+                with col2:
+                    st.write("Reference MIDI:")
+                    play_midi(reference_path)
+
+            except Exception as e:
+                st.error(f"Error comparing the two MIDI files: {e}")
 
     # Add footer with hyperlink
     st.markdown(
