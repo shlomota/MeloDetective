@@ -11,6 +11,10 @@ def replace_quotes(filename):
     return filename.replace('"', '＂').replace("'", '＇')
 
 def fetch_metadata_and_download(query, output_dir):
+    # Path to your cookies file
+    cookies_path = 'ytcookies.txt'
+    user_agent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+
     ydl_opts = {
         'format': 'bestaudio/best',
         'postprocessors': [{
@@ -19,7 +23,13 @@ def fetch_metadata_and_download(query, output_dir):
             'preferredquality': '192',
         }],
         'outtmpl': f'{output_dir}/%(title)s.%(ext)s',
+        # Add cookies and user-agent
+        'cookiefile': cookies_path,
+        'http_headers': {
+            'User-Agent': user_agent
+        }
     }
+
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info_dict = ydl.extract_info(query, download=True)
@@ -50,12 +60,6 @@ def fetch_metadata_and_download(query, output_dir):
                 'url': video_url,
                 'thumbnail': thumbnail_url
             }
-
-            query_hash = hashlib.md5(video_url.encode()).hexdigest()
-            metadata_file = os.path.join(METADATA_DIR, f"{query_hash}.txt")
-            with open(metadata_file, 'w') as f:
-                f.write(video_url)
-
             results.append(result)
 
         return results

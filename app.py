@@ -13,6 +13,7 @@ from utils import setup_logger, display_results, process_and_add_to_library
 from download_utils import download_button
 from consts import SAMPLE_QUERIES_DIR, LIBRARY_DIR, MIDIS_DIR, METADATA_DIR, LOG_DIR
 import consts
+import subprocess
 
 # Set page configuration to hide the sidebar by default
 st.set_page_config(
@@ -112,7 +113,11 @@ def main():
                 tmp_file_path = tmp_file.name
 
             # Convert webm to wav using pydub
-            audio_segment = AudioSegment.from_file(tmp_file_path, format="webm")
+            #audio_segment = AudioSegment.from_file(tmp_file_path, format="webm")
+
+            subprocess.run(["ffmpeg", "-i", tmp_file_path, tmp_file_path.replace('.webm', '.wav')], check=True)
+            audio_segment = AudioSegment.from_file(tmp_file_path.replace('.webm', '.wav'), format="wav")
+
             wav_tmp_file_path = tmp_file_path.replace(".webm", ".wav")
             audio_segment.export(wav_tmp_file_path, format="wav")
 
