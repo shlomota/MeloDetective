@@ -42,7 +42,7 @@ MeloDetective is a tool for locating tunes in audio recordings. It leverages adv
 - **app.py**: Main application script for running the MeloDetective web interface.
 - **audio_processing.py**: Contains functions for processing audio files.
 - **audio_to_midi_melodia**: Directory containing scripts for running the Melodia algorithm (Python 2 required).
-- **find_midi_matches_library.py**: Script for matching MIDI files using the library.
+- **midi_chunk_processor.py**: Script for matching MIDI files using the library.
 - **data/**: Directory for storing sample queries, library files, and metadata.
 - **logs/**: Directory for storing log files.
 - **utils.py**: Utility functions used across the project.
