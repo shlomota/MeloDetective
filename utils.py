@@ -13,7 +13,6 @@ import consts
 import numpy as np
 import matplotlib.pyplot as plt
 import tempfile
-import yt_dlp
 
 def setup_logger(name, log_file, level=logging.INFO):
     handler = logging.FileHandler(log_file)
@@ -25,30 +24,11 @@ def setup_logger(name, log_file, level=logging.INFO):
 
     return logger
 
-def display_path(path):
-    if path:
-        path_x, path_y = zip(*path)
-        plt.figure(figsize=(10, 5))
-        plt.plot(path_x, path_y, 'o-', markersize=2, linewidth=1)
-        plt.xlabel('Query Sequence Index')
-        plt.ylabel('Reference Sequence Index')
-        plt.title('DTW Path')
-        plt.grid(True)
-
-        # Save plot to a temporary file
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmpfile:
-            plt.savefig(tmpfile.name)
-            tmpfile_path = tmpfile.name
-
-        # Display the plot in Streamlit
-        st.image(tmpfile_path)
-        plt.close()
-
 def display_results(top_matches, query_midi_path, search_fallback=False):
     st.subheader("Top Matches:")
 
     for i, match in enumerate(top_matches):
-        cosine_similarity_score, dtw_score, start_time, shift,path, median_diff_semitones, track = match
+        cosine_similarity_score, start_time, shift, median_diff_semitones, track, idx = match
         query_hash = hashlib.md5(track.encode()).hexdigest()
         metadata_file = os.path.join(METADATA_DIR, f"{query_hash}.txt")
         if os.path.exists(metadata_file):
@@ -58,7 +38,7 @@ def display_results(top_matches, query_midi_path, search_fallback=False):
             youtube_url = f"{video_url}&t={int(start_time)}s"
             st.markdown(f"**Match {i+1}:** [{track}]({youtube_url})")
             st.image(thumbnail_file, width=120)
-            st.write(f"Cosine Similarity Score: {cosine_similarity_score:.2f}, DTW Score: {dtw_score:.2f}, Start time: {start_time:.2f}, Shift: {shift} semitones, Median difference: {median_diff_semitones} semitones")
+            st.write(f"Cosine Similarity Score: {cosine_similarity_score:.2f}, Start time: {start_time:.2f}, Shift: {shift} semitones, Median difference: {median_diff_semitones} semitones")
 
             midi_path = os.path.join(MIDIS_DIR, f"{track}.mid")
             chunk = extract_midi_chunk(midi_path, start_time)
@@ -75,8 +55,6 @@ def display_results(top_matches, query_midi_path, search_fallback=False):
                 qtrack = track
                 if len(track.split()) < 4:
                     qtrack = track.strip() + " Carlebach"
-                    #query_hash = hashlib.md5(qtrack.encode()).hexdigest()
-                    #logging.info("updated hash: %s" % (query_hash))
                 video_info = search_youtube(qtrack)
 
                 if video_info:
@@ -96,7 +74,7 @@ def display_results(top_matches, query_midi_path, search_fallback=False):
                     youtube_url = f"{video_url}&t={int(start_time)}s"
                     st.markdown(f"**Match {i+1}:** [{track}]({youtube_url})")
                     st.image(thumbnail_file, width=120)
-                    st.write(f"Cosine Similarity Score: {cosine_similarity_score:.2f}, DTW Score: {dtw_score:.2f}, Start time: {start_time:.2f}, Shift: {shift} semitones, Median difference: {median_diff_semitones} semitones")
+                    st.write(f"Cosine Similarity Score: {cosine_similarity_score:.2f}, Start time: {start_time:.2f}, Shift: {shift} semitones, Median difference: {median_diff_semitones} semitones")
                     midi_path = os.path.join(MIDIS_DIR, f"{track}.mid")
                     chunk = extract_midi_chunk(midi_path, start_time)
                     if chunk:
@@ -106,8 +84,6 @@ def display_results(top_matches, query_midi_path, search_fallback=False):
                         st.markdown(midi_download_str, unsafe_allow_html=True)
                 else:
                     st.write(f"No YouTube results found for {track}")
-        if consts.DEBUG:
-            display_path(path)
 
 def process_and_add_to_library(url):
     def background_process(url, logger):
@@ -127,7 +103,6 @@ def process_and_add_to_library(url):
                         convert_to_midi(vocals_path, midi_path)
                     else:
                         logger.error(f"Vocals file not found for {video_title}")
-                    #query_hash = hashlib.md5(video_url.encode()).hexdigest()
                     query_hash = hashlib.md5(sanitized_video_title.encode()).hexdigest()
                     metadata_file = os.path.join(METADATA_DIR, f"{query_hash}.txt")
                     with open(metadata_file, 'w') as f:
@@ -150,4 +125,3 @@ def process_and_add_to_library(url):
     logger = setup_logger("process_logger", log_file)
     threading.Thread(target=background_process, args=(url, logger)).start()
     st.write(f"Started processing {url}. Check logs for progress: {log_file}")
-

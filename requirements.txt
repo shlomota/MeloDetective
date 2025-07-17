@@ -1,8 +1,11 @@
-numpy~=1.26.4
-scipy~=1.11.2
-torch~=2.3.0
-pandas~=2.0.3
-tqdm~=4.66.4
+numpy>=1.26.0
+# scipy is optional, uncomment if you have a Fortran compiler installed
+# scipy>=1.11.0
+# torch is optional for advanced audio processing
+# torch>=2.0.0
+pandas>=2.0.0
+tqdm>=4.0.0
+matplotlib>=3.5.0
 mido
 librosa
 streamlit

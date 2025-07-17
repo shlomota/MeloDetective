@@ -1,16 +1,31 @@
 import mido
 import streamlit as st
 import numpy as np
-from scipy.spatial.distance import cosine
 from multiprocessing import Pool, cpu_count
 import multiprocessing
 from functools import partial
 import logging
 import time
 import traceback
-from fastdtw import fastdtw
 import consts
 import concurrent.futures
+
+# Provide a fallback for scipy.spatial.distance.cosine
+try:
+    from scipy.spatial.distance import cosine
+except ImportError:
+    def cosine(u, v):
+        """
+        Compute the cosine distance between two vectors.
+        """
+        dot_product = np.dot(u, v)
+        norm_u = np.sqrt(np.sum(u * u))
+        norm_v = np.sqrt(np.sum(v * v))
+        
+        if norm_u == 0 or norm_v == 0:
+            return 1.0  # Maximum distance
+        
+        return 1.0 - (dot_product / (norm_u * norm_v))
 
 
 # Configure logging
@@ -60,32 +75,7 @@ def cosine_similarity_matrix(query_hist, reference_hists):
     similarities = dot_product / (query_norm * reference_norms)
     return similarities
 
-def weighted_dtw(query_pitches, reference_chunk, stretch_penalty=0.2, threshold=5):
-    distance, path = fastdtw(query_pitches, reference_chunk, dist=lambda x, y: (x - y) ** 2)
-    total_distance = distance
-    stretch_length = 0
-    path_length = len(path)
-
-    for i in range(1, path_length):
-        prev = path[i-1]
-        curr = path[i]
-        if curr[0] == prev[0] or curr[1] == prev[1]:  # Horizontal or vertical step
-            stretch_length += 1
-        else:
-            if stretch_length > 0:
-                # Apply reduced penalty at the start and end of the path
-                if i <= threshold or i >= path_length - threshold:
-                    total_distance += (stretch_length ** 2) * (stretch_penalty / 5)
-                else:
-                    total_distance += (stretch_length ** 2) * stretch_penalty
-                stretch_length = 0
-    if stretch_length > 0:
-        # Apply reduced penalty at the end of the path
-        if path_length - stretch_length <= threshold:
-            total_distance += (stretch_length ** 2) * (stretch_penalty / 2)
-        else:
-            total_distance += (stretch_length ** 2) * stretch_penalty
-    return total_distance, path
+# Note: DTW functionality has been removed as we're focusing on histogram-based maqam detection
 
 def process_chunk_cosine(chunk_data, query_hist, semitone_range):
     try:
@@ -153,73 +143,42 @@ def best_matches_cosine(query_pitches, reference_chunks, start_times, track_name
     return scores[:top_n]
 
 
-def process_chunk_dtw(chunk_data, query_pitches, reference_chunks):
-    try:
-        cosine_similarity_score, start_time, best_shift, median_diff_semitones, track_name, idx = chunk_data
-        chunk = reference_chunks[idx]
-        if len(chunk) == 0 or np.isnan(chunk).all():
-            return None
-
-        normalized_chunk = normalize_pitch_sequence(chunk, 0)
-        reference_median = np.median(chunk)
-        if np.isnan(reference_median):
-            return None
-        original_median = np.median(query_pitches)
-        median_diff_semitones = int(reference_median - original_median)
-
-        best_score = float('inf')
-        best_path = None
-        for shift in range(-1, 2):
-            normalized_query = normalize_pitch_sequence(query_pitches, shift)
-            distance, path = weighted_dtw(normalized_query, normalized_chunk)
-            if distance < best_score:
-                best_score = distance
-                best_shift = shift
-                best_path = path
-
-        return (cosine_similarity_score, best_score, start_time, best_shift,best_path, median_diff_semitones, track_name)
-    except Exception as e:
-        logging.error("Error in process_chunk_dtw: %s", traceback.format_exc())
-        return None
+# Note: DTW functionality has been removed as we're focusing on histogram-based maqam detection
 
 def best_matches(query_pitches, reference_chunks, start_times, track_names, top_n=10):
-    # Step 1: Prefilter with Cosine Similarity
-    logging.info("Starting prefiltering with cosine similarity...")
-    top_cosine_matches = best_matches_cosine(query_pitches, reference_chunks, start_times, track_names, top_n=500)
+    """
+    Find the best matches using histogram-based comparison.
+    
+    Args:
+        query_pitches: Pitch sequence from the query
+        reference_chunks: List of reference pitch sequences
+        start_times: List of start times for each reference chunk
+        track_names: List of track names for each reference chunk
+        top_n: Number of top matches to return
+        
+    Returns:
+        List of top matches sorted by similarity (highest first)
+    """
+    # Use cosine similarity for matching
+    logging.info("Finding matches using cosine similarity...")
+    matches = best_matches_cosine(query_pitches, reference_chunks, start_times, track_names, top_n=top_n)
+    
     if consts.DEBUG:
-        for i in range(20):
-            logging.info(top_cosine_matches[i])
-    mm = [a for a in top_cosine_matches if "ebo" in a[-2]]
-    logging.info("eb matches: %s" % (mm))
-
-    # Step 2: Rerank with DTW
-    logging.info("Starting reranking with DTW...")
-    start = time.time()
-    process_chunk_partial = partial(process_chunk_dtw, query_pitches=query_pitches, reference_chunks=reference_chunks)
-
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        final_results = list(executor.map(process_chunk_partial, top_cosine_matches))
-
-    end = time.time()
-    if consts.DEBUG:
-        st.text("DTW took %s seconds, on %s items" % (end - start, len(top_cosine_matches)))
-
-    final_scores = [result for result in final_results if result is not None]
-    final_scores.sort(key=lambda x: x[1])  # Lower DTW score is better
-
-	# Extract indices and corresponding elements
-    indexed_final_scores = [(index, value) for index, value in enumerate(final_scores)]
-    mm = [(index, value) for index, value in indexed_final_scores if "ebo" in value[-1]]
-    logging.info("eb matches DTW: %s" % (mm))
-
-    # Ensure unique tracks in final results
+        for i in range(min(10, len(matches))):
+            logging.info(f"Match {i+1}: {matches[i]}")
+    
+    # Ensure unique tracks in results
     unique_tracks = set()
-    final_scores = [match for match in final_scores if match[-1] not in unique_tracks and not unique_tracks.add(match[-1])]
-    if consts.DEBUG:
-        logging.info("Final top matches after DTW")
-        for i in range(20):
-            logging.info(final_scores[i])
-    return final_scores[:top_n]
+    unique_matches = []
+    for match in matches:
+        track_name = match[-2]  # Track name is the second-to-last element
+        if track_name not in unique_tracks:
+            unique_tracks.add(track_name)
+            unique_matches.append(match)
+            if len(unique_matches) >= top_n:
+                break
+    
+    return unique_matches
 
 def format_time(seconds):
     minutes = int(seconds // 60)
@@ -240,12 +199,12 @@ if __name__ == "__main__":
         logging.info("Splitting reference MIDI file into chunks...")
         reference_chunks, start_times = split_midi(reference_pitches, reference_times, chunk_length, overlap)
 
-        logging.info("Finding the best matches using histogram comparison and DTW...")
+        logging.info("Finding the best matches using histogram comparison...")
         track_names = ["Track" + str(i) for i in range(len(reference_chunks))]
         top_matches = best_matches(query_pitches, reference_chunks, start_times, track_names, top_n=10)
 
-        for i, (cosine_similarity_score, dtw_score, start_time, shift, median_diff_semitones, track) in enumerate(top_matches):
-            logging.info(f"Match {i+1}: Cosine Similarity = {cosine_similarity_score:.2f}, DTW Score = {dtw_score:.2f}, Start time = {format_time(start_time)}, Shift = {shift} semitones, Median difference = {median_diff_semitones} semitones, Track Name = {track}")
+        for i, (cosine_similarity_score, start_time, shift, median_diff_semitones, track, _) in enumerate(top_matches):
+            logging.info(f"Match {i+1}: Cosine Similarity = {cosine_similarity_score:.2f}, Start time = {format_time(start_time)}, Shift = {shift} semitones, Median difference = {median_diff_semitones} semitones, Track Name = {track}")
 
     except Exception as e:
         logging.error("Error processing sample query: %s", traceback.format_exc())

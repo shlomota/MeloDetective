@@ -13,6 +13,9 @@ import mido
 import streamlit as st
 import consts
 from consts import LIBRARY_DIR, MIDIS_DIR, METADATA_DIR
+from frequency_analysis import extract_note_sequence, create_midi_from_notes
+from maqam_definitions import detect_maqam
+from maqam_visualization import display_maqam_results_streamlit, create_midi_player_widget
 
     
 def sanitize_filename(filename):
@@ -47,47 +50,202 @@ def trim_audio(audio_segment, duration_ms=20000):
     """Trim the audio to the specified duration in milliseconds."""
     return audio_segment[:duration_ms]
 
+def process_midi_file(midi_file_path):
+    """
+    Process MIDI file for maqam detection.
+    
+    Args:
+        midi_file_path: Path to the MIDI file
+        
+    Returns:
+        Tuple of (detected_maqams, midi_file_path)
+    """
+    try:
+        # Create a progress bar
+        progress_bar = st.progress(0)
+        status_text = st.empty()
+        
+        # Extract notes from MIDI file
+        status_text.info("Extracting notes from MIDI file...")
+        progress_bar.progress(30)
+        
+        # Use mido to extract notes from MIDI
+        import mido
+        midi_file = mido.MidiFile(midi_file_path)
+        
+        # Extract notes and times
+        notes = []
+        times = []
+        current_time = 0
+        
+        for track in midi_file.tracks:
+            for msg in track:
+                current_time += msg.time
+                if msg.type == 'note_on' and msg.velocity > 0:
+                    # Convert MIDI note to quarter tone system (multiply by 2)
+                    note_value = msg.note * 2
+                    notes.append(note_value)
+                    times.append(current_time)
+        
+        if len(notes) == 0:
+            progress_bar.empty()
+            status_text.error("No notes detected in the MIDI file. Please try again with a different file.")
+            return None, None
+        
+        progress_bar.progress(60)
+        
+        # Provide download link for the MIDI file
+        download_str = download_button(open(midi_file_path, "rb").read(), "query.mid", "Download MIDI")
+        st.markdown(download_str, unsafe_allow_html=True)
+        
+        # Detect maqam from the extracted notes
+        status_text.info("Detecting maqam...")
+        progress_bar.progress(80)
+        
+        # Use semitones for matching (better compatibility with Western ears)
+        maqam_results = detect_maqam(notes, use_semitones=True)
+        progress_bar.progress(90)
+        
+        # Display maqam detection results with visualization
+        status_text.success("Analysis complete!")
+        progress_bar.progress(100)
+        
+        # Clear progress indicators
+        progress_bar.empty()
+        status_text.empty()
+        
+        # Display MIDI player with visualization
+        st.subheader("MIDI Representation")
+        create_midi_player_widget(midi_file_path)
+        
+        # Display maqam detection results
+        display_maqam_results_streamlit(notes, maqam_results, midi_file_path=midi_file_path)
+        
+        return maqam_results, midi_file_path
+    except Exception as e:
+        print(traceback.format_exc())
+        st.error(f"Error processing MIDI file: {e}")
+        return None, None
+
+
 def process_audio(audio_file_path):
+    """
+    Process audio file for maqam detection with enhanced quarter tone support.
+    
+    Args:
+        audio_file_path: Path to the audio file
+        
+    Returns:
+        Tuple of (detected_maqams, midi_file_path)
+    """
     if not os.path.exists(MIDIS_DIR):
         os.makedirs(MIDIS_DIR)
 
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".mid") as temp_midi:
-        midi_file_path = temp_midi.name
-
     try:
-        convert_to_midi(audio_file_path, midi_file_path)
-        st.success("Audio converted to MIDI successfully!")
-        download_str = download_button(open(midi_file_path, "rb").read(), "query.mid", "Download Query MIDI")
-        st.markdown(download_str, unsafe_allow_html=True)
-
-        # Load the query MIDI file
-        query_pitches, query_times = midi_to_pitches_and_times(midi_file_path)
+        # Create a progress bar
+        progress_bar = st.progress(0)
+        status_text = st.empty()
         
-        # Load reference MIDI files
-        result = load_chunks_from_directory(MIDIS_DIR)
-        all_chunks, all_start_times, track_names = load_chunks_from_directory(MIDIS_DIR)
-
-        st.info("Finding the best matches...")
-
-        # Find best matches
-        top_n = 5
-        if consts.DEBUG:
-            top_n = 30
-        top_matches = best_matches(query_pitches, all_chunks, all_start_times, track_names=track_names, top_n=top_n)
-
-        return top_matches, midi_file_path
+        # Extract notes with quarter tone precision using our enhanced frequency analysis
+        status_text.info("Extracting notes with quarter tone precision...")
+        progress_bar.progress(10)
+        
+        notes, times = extract_note_sequence(audio_file_path)
+        progress_bar.progress(40)
+        
+        if len(notes) == 0:
+            progress_bar.empty()
+            status_text.error("No notes detected in the audio. Please try again with clearer audio.")
+            return None, None
+            
+        # Create a MIDI file for download and visualization
+        status_text.info("Creating MIDI representation...")
+        progress_bar.progress(50)
+        
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".mid") as temp_midi:
+            midi_file_path = temp_midi.name
+            
+        create_midi_from_notes(notes, times, midi_file_path)
+        progress_bar.progress(70)
+        
+        # Provide download link for the MIDI file
+        download_str = download_button(open(midi_file_path, "rb").read(), "query.mid", "Download MIDI")
+        st.markdown(download_str, unsafe_allow_html=True)
+        
+        # Detect maqam from the extracted notes
+        status_text.info("Detecting maqam...")
+        progress_bar.progress(80)
+        
+        # Use semitones for matching (better compatibility with Western ears)
+        maqam_results = detect_maqam(notes, use_semitones=True)
+        progress_bar.progress(90)
+        
+        # Display maqam detection results with visualization
+        status_text.success("Analysis complete!")
+        progress_bar.progress(100)
+        
+        # Clear progress indicators
+        progress_bar.empty()
+        status_text.empty()
+        
+        # Display MIDI player with visualization
+        st.subheader("MIDI Representation")
+        create_midi_player_widget(midi_file_path)
+        
+        # Display maqam detection results
+        display_maqam_results_streamlit(notes, maqam_results, midi_file_path=midi_file_path)
+        
+        return maqam_results, midi_file_path
     except Exception as e:
         print(traceback.format_exc())
-        print(f"Error processing audio file: {e}")
+        st.error(f"Error processing audio file: {e}")
         return None, None
 
 def extract_vocals(mp3_file, output_dir):
+    """
+    Extract vocals from an audio file using Demucs with optimized settings for maqam detection.
+    
+    Args:
+        mp3_file: Path to the audio file
+        output_dir: Directory to save the extracted vocals
+        
+    Returns:
+        Path to the extracted vocals file
+    """
+    # Create output directory if it doesn't exist
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+    
+    # Use Demucs with optimized settings for vocal extraction
+    # -n htdemucs: Use the htdemucs model which is better for vocal isolation
+    # --two-stems=vocals: Only separate vocals from the rest
+    # --shifts=10: Apply more shifts for better quality (default is 5)
     cmd = [
         "demucs",
+        "-n", "htdemucs",
+        "--two-stems=vocals",
+        "--shifts=10",
         "-o", output_dir,
         mp3_file
     ]
-    subprocess.run(cmd, check=True)
+    
+    try:
+        subprocess.run(cmd, check=True)
+        
+        # Get the filename without extension
+        filename = os.path.splitext(os.path.basename(mp3_file))[0]
+        
+        # Path to the extracted vocals file
+        vocals_path = os.path.join(output_dir, "htdemucs", filename, "vocals.wav")
+        
+        if os.path.exists(vocals_path):
+            return vocals_path
+        else:
+            print(f"Vocals file not found at {vocals_path}")
+            return None
+    except Exception as e:
+        print(f"Error extracting vocals: {e}")
+        return None
 
 def is_in_library(query):
     query_hash = hashlib.md5(query.encode()).hexdigest()
