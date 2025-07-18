@@ -112,7 +112,9 @@ def visualize_absolute_note_distribution(notes: List[float]) -> plt.Figure:
         is_black_key.append(note_name.endswith('#'))
     
     # Create colors for bars (white keys are light gray, black keys are dark gray)
-    colors = ['#333333' if black else '#999999' for black in is_black_key]
+    # colors = ['#1a1a1a' if black else '#999999' for black in is_black_key]
+    colors = ['#0d0d0d' if black else '#d0d0d0' for black in is_black_key]
+
     
     # Plot histogram with piano-like coloring
     bars = ax.bar(x, hist, width=0.8, color=colors, alpha=0.8)
@@ -280,7 +282,7 @@ def visualize_maqam_comparison(input_notes: List[float], maqam_name: str, shift:
         is_black_key.append(note_name.endswith('#'))
     
     # Create colors for bars (white keys are light gray, black keys are dark gray)
-    colors = ['#333333' if black else '#999999' for black in is_black_key]
+    colors = ['#0d0d0d' if black else '#d0d0d0' for black in is_black_key]
     
     # Plot the piano keyboard background
     for i, color in enumerate(colors):
@@ -312,37 +314,213 @@ def visualize_maqam_comparison(input_notes: List[float], maqam_name: str, shift:
     
     return fig
 
-def visualize_top_maqams(input_notes: List[float], maqam_results: List[Tuple[str, float, int]], 
-                        max_maqams: int = 3) -> List[plt.Figure]:
+
+def visualize_maqam_comparison(input_notes: List[float], maqam_name: str, shift: int = 0, 
+                              starting_midi_note: int = 60) -> plt.Figure:
     """
-    Visualize the top matching maqams.
+    Visualize the comparison between input notes and maqam scale, starting from the actual
+    starting note of the melody and showing 3 octaves of the maqam.
     
     Args:
-        input_notes: Input note sequence
-        maqam_results: List of (maqam_name, confidence, shift) tuples
-        max_maqams: Maximum number of maqams to visualize
+        input_notes: List of input note values
+        maqam_name: Name of the maqam to compare with
+        shift: Shift value for the maqam
+        starting_midi_note: MIDI note number of the starting note
         
     Returns:
-        List of matplotlib figures
+        Matplotlib figure
     """
-    # Create visualizations for top maqams
-    figures = []
-    for result in maqam_results[:max_maqams]:
-        # Handle different result formats
-        if len(result) >= 5:
-            maqam_name, confidence, shift, _, starting_midi_note = result
-        elif len(result) >= 4:
-            maqam_name, confidence, shift, _ = result
-            starting_midi_note = int(round(min(input_notes) / 2)) if len(input_notes) > 0 else 0
-        else:
-            maqam_name, confidence, shift = result
-            starting_midi_note = int(round(min(input_notes) / 2)) if len(input_notes) > 0 else 0
-            
-        fig = visualize_maqam_comparison(input_notes, maqam_name, shift, starting_midi_note)
-        if fig:
-            figures.append(fig)
+    maqam = get_maqam(maqam_name)
+    if not maqam:
+        return None
     
-    return figures
+    # Convert quarter tone notes to MIDI notes (same as in the scoring algorithm)
+    midi_notes = [int(round(note / 2)) for note in input_notes]
+    
+    # Find the range of notes
+    min_note = min(midi_notes)
+    max_note = max(midi_notes)
+    
+    # Determine the appropriate range for visualization
+    range_min = starting_midi_note - 12  # One octave below
+    range_max = starting_midi_note + 24  # Two octaves above
+    
+    # Ensure we include all input notes
+    range_min = min(range_min, min_note)
+    range_max = max(range_max, max_note)
+    
+    # Create a histogram of the input notes
+    note_range = range(range_min, range_max + 1)
+    input_hist = np.zeros(len(note_range))
+    
+    # Count occurrences of each note in the input
+    note_counts = {}
+    for note in midi_notes:
+        if note in note_counts:
+            note_counts[note] += 1
+        else:
+            note_counts[note] = 1
+    
+    # Fill the histogram
+    for note, count in note_counts.items():
+        if range_min <= note <= range_max:
+            input_hist[note - range_min] = count
+    
+    # Normalize the histogram
+    if np.sum(input_hist) > 0:
+        input_hist = input_hist / np.sum(input_hist)
+        
+    # Print debug info
+    print(f"Visualization - Input notes: {sorted(note_counts.keys())}")
+    print(f"Visualization - Maqam: {maqam_name}, Shift: {shift}, Starting at: {range_min}")
+    
+    # Generate maqam scale using the SAME semitone positions as in detect_maqam()
+    if maqam_name == "nahawand":
+        semitone_positions = [0, 2, 3, 5, 7, 8, 10]
+    elif maqam_name == "ajam":
+        semitone_positions = [0, 2, 4, 5, 7, 9, 11]
+    elif maqam_name == "rast":
+        semitone_positions = [0, 2, 4, 5, 7, 9, 11]
+    elif maqam_name == "hijaz":
+        semitone_positions = [0, 1, 4, 5, 7, 8, 10]
+    elif maqam_name == "kurd":
+        semitone_positions = [0, 1, 3, 5, 7, 8, 10]
+    elif maqam_name == "bayati":
+        semitone_positions = [0, 2, 3, 5, 7, 9, 10]
+    elif maqam_name == "saba":
+        semitone_positions = [0, 2, 3, 4, 7, 8, 10]
+    elif maqam_name == "siga":
+        semitone_positions = [0, 2, 4, 5, 7, 9, 11]
+    else:
+        # Fallback to major scale
+        semitone_positions = [0, 2, 4, 5, 7, 9, 11]
+
+    # Generate maqam scale across the range with shift applied
+    maqam_scale = []
+    min_octave = range_min // 12
+    max_octave = range_max // 12
+
+    for octave in range(min_octave, max_octave + 2):
+        for pos in semitone_positions:
+            note = octave * 12 + pos + shift  # Apply shift here
+            if range_min <= note <= range_max:
+                maqam_scale.append(note)
+    
+    # Create a histogram for the maqam scale
+    maqam_hist = np.zeros_like(input_hist)
+    for note in maqam_scale:
+        if range_min <= note <= range_max:
+            maqam_hist[note - range_min] += 1
+    
+    # Normalize the maqam histogram
+    if np.sum(maqam_hist) > 0:
+        maqam_hist = maqam_hist / np.sum(maqam_hist)
+    
+    # Calculate the maqam's root note based on the shift
+    note_names = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
+    maqam_root_index = (shift % 12)  # The shift directly indicates the root note
+    maqam_root_note = note_names[maqam_root_index]
+    
+    # Create figure
+    fig, ax = plt.subplots(figsize=(14, 6))
+    
+    # X-axis labels (note names with octaves)
+    x = np.arange(len(input_hist))
+    
+    # Generate note names with octaves and determine which are black keys
+    labels = []
+    is_black_key = []
+    
+    for midi_note in range(range_min, range_max + 1):
+        octave = (midi_note // 12) - 1
+        note_idx = midi_note % 12
+        note_name = note_names[note_idx]
+        labels.append(f"{note_name}{octave}")
+        # C#, D#, F#, G#, A# are black keys
+        is_black_key.append(note_name.endswith('#'))
+    
+    # Create colors for bars (white keys are light, black keys are very dark)
+    colors = ['#0d0d0d' if black else '#d0d0d0' for black in is_black_key]
+    
+    # Plot the piano keyboard background
+    for i, color in enumerate(colors):
+        ax.bar(x[i], 0.05, width=0.8, color=color, alpha=0.3, bottom=-0.05)
+    
+    # Plot histograms
+    width = 0.35
+    ax.bar(x - width/2, input_hist, width, label='Input Notes', alpha=0.7, color='#1f77b4')
+    ax.bar(x + width/2, maqam_hist, width, label=f'{maqam.name} Scale', alpha=0.7, color='#ff7f0e')
+    
+    # Set x-axis labels
+    ax.set_xticks(x)
+    ax.set_xticklabels(labels, rotation=45, ha='right', fontsize=8)
+    
+    # Add vertical grid lines to separate octaves
+    for i in range(len(labels)):
+        if labels[i].endswith('C0') or labels[i].endswith('C1') or labels[i].endswith('C2') or \
+           labels[i].endswith('C3') or labels[i].endswith('C4') or labels[i].endswith('C5') or \
+           labels[i].endswith('C6') or labels[i].endswith('C7') or labels[i].endswith('C8'):
+            ax.axvline(x=i, color='#dddddd', linestyle='-', alpha=0.5)
+
+
+    
+    # Plot histograms
+    width = 0.35
+    bars1 = ax.bar(x - width/2, input_hist, width, label='Input Notes', alpha=0.7, color='#1f77b4')
+    bars2 = ax.bar(x + width/2, maqam_hist, width, label=f'{maqam.name} Scale', alpha=0.7, color='#ff7f0e')
+
+    # Highlight the starting note of the input melody
+    starting_note_mod12 = (int(round(min(input_notes) / 2))) % 12
+    for i, midi_note in enumerate(range(range_min, range_max + 1)):
+        if midi_note % 12 == starting_note_mod12:
+            # Make the starting note bars taller/more prominent
+            if input_hist[i] > 0:
+                bars1[i].set_color('#0066cc')  # Darker blue
+            if maqam_hist[i] > 0:
+                bars2[i].set_height(maqam_hist[i] * 1.3)  # 30% taller
+                bars2[i].set_color('#cc5500')  # Darker orange
+    
+    # Set labels and title
+    ax.set_xlabel('Note')
+    ax.set_ylabel('Frequency')
+    ax.set_title(f'Note Distribution: Input vs {maqam.name} Scale starting on {maqam_root_note}')
+    ax.legend()
+    
+    plt.tight_layout()
+    
+    return fig
+
+# def visualize_top_maqams(input_notes: List[float], maqam_results: List[Tuple[str, float, int]], 
+#                         max_maqams: int = 3) -> List[plt.Figure]:
+#     """
+#     Visualize the top matching maqams.
+    
+#     Args:
+#         input_notes: Input note sequence
+#         maqam_results: List of (maqam_name, confidence, shift) tuples
+#         max_maqams: Maximum number of maqams to visualize
+        
+#     Returns:
+#         List of matplotlib figures
+#     """
+#     # Create visualizations for top maqams
+#     figures = []
+#     for result in maqam_results[:max_maqams]:
+#         # Handle different result formats
+#         if len(result) >= 5:
+#             maqam_name, confidence, shift, _, starting_midi_note = result
+#         elif len(result) >= 4:
+#             maqam_name, confidence, shift, _ = result
+#             starting_midi_note = int(round(min(input_notes) / 2)) if len(input_notes) > 0 else 0
+#         else:
+#             maqam_name, confidence, shift = result
+#             starting_midi_note = int(round(min(input_notes) / 2)) if len(input_notes) > 0 else 0
+            
+#         fig = visualize_maqam_comparison(input_notes, maqam_name, shift, starting_midi_note)
+#         if fig:
+#             figures.append(fig)
+    
+#     return figures
 
 def fig_to_base64(fig: plt.Figure) -> str:
     """

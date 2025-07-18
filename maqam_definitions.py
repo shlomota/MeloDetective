@@ -600,7 +600,22 @@ def detect_maqam(notes: List[float], transposition_range: Tuple[int, int] = (-12
         results.append((maqam_name, best_score, best_shift, original_pitch, starting_note))
     
     # Sort by similarity (highest first)
-    results.sort(key=lambda x: x[1], reverse=True)
+    # results.sort(key=lambda x: x[1], reverse=True)
+    # At the end of detect_maqam function, replace this line:
+    # results.sort(key=lambda x: x[1], reverse=True)
+
+    # With this:
+    def sort_key(result):
+        maqam_name, score, shift, original_pitch, starting_note = result
+        # Primary sort: score (higher is better)
+        # Secondary sort: distance from starting note (closer is better)
+        starting_note_mod12 = starting_note % 12
+        shift_mod12 = shift % 12
+        distance = min(abs(starting_note_mod12 - shift_mod12), 
+                    12 - abs(starting_note_mod12 - shift_mod12))  # Circular distance
+        return (score, -distance)  # Negative distance so closer = higher priority
+
+    results.sort(key=sort_key, reverse=True)
     
     return results
 
