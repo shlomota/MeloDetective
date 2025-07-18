@@ -6,7 +6,7 @@ from pydub import AudioSegment
 import os
 import hashlib
 import re
-from download_utils import download_button
+from download_utils import download_button, download_midi_button
 from midi_chunk_processor import best_matches, midi_to_pitches_and_times, load_chunks_from_directory
 from mido import MidiFile, MidiTrack, Message
 import mido
@@ -30,6 +30,21 @@ def sanitize_filename(filename):
     return result
 
 def convert_to_midi(audio_file, midi_file):
+    # Try to use Basic Pitch first, fall back to Melodia if Basic Pitch is not available
+    try:
+        from basic_pitch_converter import convert_audio_to_midi, BASIC_PITCH_AVAILABLE
+        
+        if BASIC_PITCH_AVAILABLE:
+            print(f"Converting {audio_file} to MIDI using Basic Pitch")
+            success = convert_audio_to_midi(audio_file, midi_file)
+            if success:
+                return
+            else:
+                print("Basic Pitch conversion failed, falling back to Melodia")
+    except ImportError:
+        print("Basic Pitch not available, falling back to Melodia")
+    
+    # Fall back to Melodia
     cmd = [
         "/usr/local/bin/python2", 
         "audio_to_midi_melodia/audio_to_midi_melodia.py",
@@ -44,7 +59,6 @@ def convert_to_midi(audio_file, midi_file):
 
     print(f"Running command: {' '.join(cmd)}")  # Debugging line
     subprocess.run(cmd, check=True, env=env)
-    #subprocess.run(cmd, check=True)
 
 def trim_audio(audio_segment, duration_ms=40000):
     """Trim the audio to the specified duration in milliseconds."""
@@ -94,8 +108,8 @@ def process_midi_file(midi_file_path):
         
         progress_bar.progress(60)
         
-        # Provide download link for the MIDI file
-        download_str = download_button(open(midi_file_path, "rb").read(), "query.mid", "Download MIDI")
+        # Provide download link for the MIDI file using our specialized MIDI download function
+        download_str = download_midi_button(midi_file_path, "query.mid", "Download MIDI")
         st.markdown(download_str, unsafe_allow_html=True)
         
         # Detect maqam from the extracted notes
@@ -146,12 +160,48 @@ def process_audio(audio_file_path):
         progress_bar = st.progress(0)
         status_text = st.empty()
         
-        # Extract notes with quarter tone precision using our enhanced frequency analysis
-        status_text.info("Extract notes...")
-        progress_bar.progress(10)
-        
-        notes, times = extract_note_sequence(audio_file_path)
-        progress_bar.progress(40)
+        # Try to use Basic Pitch first, fall back to frequency analysis if not available
+        try:
+            from basic_pitch_converter import extract_notes_from_audio, BASIC_PITCH_AVAILABLE
+            
+            if BASIC_PITCH_AVAILABLE:
+                status_text.info("Extracting notes using Basic Pitch...")
+                progress_bar.progress(10)
+                
+                try:
+                    # Try to get notes, times, and MIDI path
+                    result = extract_notes_from_audio(audio_file_path)
+                    
+                    if len(result) == 3:
+                        notes, times, basic_pitch_midi_path = result
+                    else:
+                        notes, times = result
+                        basic_pitch_midi_path = None
+                        
+                    progress_bar.progress(40)
+                    
+                    if len(notes) == 0:
+                        status_text.warning("Basic Pitch couldn't extract notes, falling back to frequency analysis...")
+                        notes, times = extract_note_sequence(audio_file_path)
+                        basic_pitch_midi_path = None
+                except Exception as e:
+                    status_text.warning(f"Error with Basic Pitch: {e}, falling back to frequency analysis...")
+                    notes, times = extract_note_sequence(audio_file_path)
+                    basic_pitch_midi_path = None
+            else:
+                # Fall back to frequency analysis
+                status_text.info("Extracting notes with frequency analysis...")
+                progress_bar.progress(10)
+                
+                notes, times = extract_note_sequence(audio_file_path)
+                progress_bar.progress(40)
+        except ImportError:
+            # Fall back to frequency analysis
+            status_text.info("Extracting notes with frequency analysis...")
+            progress_bar.progress(10)
+            
+            notes, times = extract_note_sequence(audio_file_path)
+            progress_bar.progress(40)
         
         if len(notes) == 0:
             progress_bar.empty()
@@ -162,14 +212,25 @@ def process_audio(audio_file_path):
         status_text.info("Creating MIDI representation...")
         progress_bar.progress(50)
         
+        # Create a named temporary file that won't be deleted when closed
         with tempfile.NamedTemporaryFile(delete=False, suffix=".mid") as temp_midi:
             midi_file_path = temp_midi.name
+        
+        # If we're using Basic Pitch, the MIDI file might already exist
+        # Check if we have a Basic Pitch MIDI file path
+        if 'basic_pitch_midi_path' in locals() and basic_pitch_midi_path and os.path.exists(basic_pitch_midi_path):
+            # Copy the Basic Pitch MIDI file to our temporary file
+            import shutil
+            shutil.copy(basic_pitch_midi_path, midi_file_path)
+            print(f"Using Basic Pitch MIDI file: {basic_pitch_midi_path}")
+        else:
+            # Create a MIDI file from the extracted notes
+            create_midi_from_notes(notes, times, midi_file_path)
             
-        create_midi_from_notes(notes, times, midi_file_path)
         progress_bar.progress(70)
         
-        # Provide download link for the MIDI file
-        download_str = download_button(open(midi_file_path, "rb").read(), "query.mid", "Download MIDI")
+        # Provide download link for the MIDI file using our specialized MIDI download function
+        download_str = download_midi_button(midi_file_path, "query.mid", "Download MIDI")
         st.markdown(download_str, unsafe_allow_html=True)
         
         # Detect maqam from the extracted notes

@@ -14,3 +14,4 @@ midiutil
 streamlit-mic-recorder
 fortepyan
 streamlit-pianoroll
+basic-pitch

@@ -8,37 +8,37 @@ MeloDetective is a tool for detecting Middle Eastern musical modes (maqams) in a
 
 ## How It Works
 
+![Main Interface](https://github.com/shlomota/MeloDetective/raw/main/data/images/main.png)
+
 ### Step-by-Step Process
 
-1. **Enhanced Frequency Analysis**:
-   The first step involves analyzing the audio input to extract frequency information with high precision. We use advanced signal processing techniques to detect notes, which are essential for accurately identifying Middle Eastern musical modes (maqams).
+1. **Audio to MIDI Conversion**:
+   For audio files, we use Spotify's Basic Pitch to convert sound to MIDI. For best accuracy, uploading MIDI files directly is recommended.
 
-2. **Note Extraction**:
-   The extracted frequencies are converted into a sequence of notes. The system can detect both standard Western notes and the microtonal intervals that are characteristic of maqams.
+2. **Frequency Analysis**:
+   We analyze the input to extract frequency information and detect notes, which are essential for identifying maqams.
 
 3. **Note Normalization**:
-   To ensure that the maqam detection works regardless of the absolute pitch you start on, we normalize the note sequence by subtracting the median pitch. This makes the detection pitch-independent, so it works for different vocal ranges and instruments.
+   We normalize the note sequence by subtracting the median pitch, making the detection pitch-independent so it works for different vocal ranges and instruments.
 
 4. **Pattern-Based Representation**:
-   We analyze the distribution of notes in the melody, focusing on which notes are used most frequently. Each maqam has a characteristic pattern of notes that helps identify it.
+   We analyze the distribution of notes in the melody, focusing on which notes are used most frequently. Each maqam has a characteristic pattern of notes.
+
+   ![Note Distribution](data/images/histogram.png)
 
 5. **Maqam Matching**:
-   We compare the note pattern of the input melody with the characteristic patterns of different maqams using a weighted accuracy score. This measures how well the notes in the input melody match the notes in each maqam scale, regardless of the absolute starting pitch.
-
-   For each maqam, we try different transpositions to find the best match. The system then ranks the maqams by their similarity scores and presents the most likely matches.
+   We compare the note pattern of the input melody with different maqams using a weighted accuracy score. For each maqam, we try different transpositions to find the best match.
 
 6. **Maqam Library**:
-   Our system includes a library of common Middle Eastern maqams, including:
-   - **Ajam**: Closely resembles the Western major scale
-   - **Rast**: Similar to the Western major scale but with a neutral third
-   - **Nahawand**: Similar to the Western minor scale
-   - **Hijaz**: Features an augmented second between the second and third degrees
-   - **Kurd**: Similar to the Western Phrygian mode
+   Our system includes common Middle Eastern maqams:
+   - **Ajam**: Similar to Western major scale
+   - **Rast**: Similar to major scale but with a neutral third
+   - **Nahawand**: Similar to Western minor scale
+   - **Hijaz**: Features an augmented second between second and third degrees
+   - **Kurd**: Similar to Western Phrygian mode
    - **Bayati**: Features a neutral second degree
    - **Saba**: Features a diminished fourth
    - **Siga**: Features neutral seconds and thirds
-
-   The library can be expanded to include additional maqams as needed.
 
 ## Directory Structure
 

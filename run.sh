@@ -8,7 +8,7 @@ fi
 
 # Activate the virtual environment
 echo "Activating virtual environment..."
-source venv/bin/activate
+source venv311/bin/activate
 
 # Run the Streamlit app
 echo "Starting Maqam Detective app..."

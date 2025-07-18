@@ -1,18 +1,29 @@
 #!/bin/bash
 
-# Create a virtual environment
+# Create and activate a virtual environment
 echo "Creating virtual environment..."
 python -m venv venv
-
-# Activate the virtual environment
-echo "Activating virtual environment..."
 source venv/bin/activate
 
-# Install dependencies
-echo "Installing dependencies..."
+# Upgrade pip
+echo "Upgrading pip..."
 pip install --upgrade pip
-pip install -r requirements.txt
 
+# Install basic dependencies
+echo "Installing basic dependencies..."
+pip install numpy pandas tqdm matplotlib mido librosa streamlit pydub midiutil
 
-echo "Setup complete! To activate the virtual environment, run:"
+# Install Basic Pitch
+echo "Installing Basic Pitch..."
+pip install basic-pitch
+
+# Install optional dependencies for visualization
+echo "Installing optional dependencies for visualization..."
+pip install fortepyan streamlit-pianoroll
+
+# Install microphone recording support
+echo "Installing microphone recording support..."
+pip install streamlit-mic-recorder
+
+echo "Setup complete! Activate the virtual environment with:"
 echo "source venv/bin/activate"

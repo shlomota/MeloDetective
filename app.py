@@ -250,56 +250,51 @@ def main():
     with tab5:
         st.header("How does it work?")
 
-        st.subheader("1. Enhanced Frequency Analysis")
+        st.subheader("1. Audio to MIDI Conversion")
         st.write("""
-        The first step involves analyzing the audio input to extract frequency information with high precision. We use advanced signal processing techniques to detect notes, which are essential for accurately identifying Middle Eastern musical modes (maqams).
+        For audio files, we use Spotify's Basic Pitch to convert sound to MIDI. For best accuracy, uploading MIDI files directly is recommended.
         """)
 
-        st.subheader("2. Note Extraction")
+        st.subheader("2. Frequency Analysis")
         st.write("""
-        The extracted frequencies are converted into a sequence of notes. The system can detect both standard Western notes and the microtonal intervals that are characteristic of maqams.
+        We analyze the input to extract frequency information and detect notes, which are essential for identifying maqams.
         """)
         st.write("***Note:*** *You can download the MIDI representation of your input using the \"Download MIDI\" button. While standard MIDI doesn't directly support quarter tones, we use pitch bend to approximate them.*")
 
         st.subheader("3. Note Normalization")
         st.write("""
-        To ensure that the maqam detection works regardless of the absolute pitch you start on, we normalize the note sequence by subtracting the median pitch. This makes the detection pitch-independent, so it works for different vocal ranges and instruments.
+        We normalize the note sequence by subtracting the median pitch, making the detection pitch-independent so it works for different vocal ranges and instruments.
         """)
 
         st.subheader("4. Pattern-Based Representation")
         st.write("""
-        We analyze the distribution of notes in the melody, focusing on which notes are used most frequently. Each maqam has a characteristic pattern of notes that helps identify it.
+        We analyze the distribution of notes in the melody, focusing on which notes are used most frequently. Each maqam has a characteristic pattern of notes.
         
-        - **Note Distribution**: The analysis shows which notes are used most frequently in the melody.
-        - **Maqam Fingerprint**: Each maqam has a characteristic note pattern.
-        - **Microtonal Support**: Our system can recognize the microtonal intervals used in Middle Eastern music.
+        - **Note Distribution**: Shows which notes are used most frequently in the melody
+        - **Maqam Fingerprint**: Each maqam has a characteristic note pattern
+        - **Microtonal Support**: Recognition of microtonal intervals used in Middle Eastern music
         """)
+        
+        # Display the histogram image
+        st.image("data/images/histogram.png", caption="Note Distribution: Input vs Nahawand Scale")
 
         st.subheader("5. Maqam Matching")
         st.write("""
-        We compare the note pattern of the input melody with the characteristic patterns of different maqams using a weighted accuracy score. This measures how well the notes in the input melody match the notes in each maqam scale, regardless of the absolute starting pitch.
-        
-        For each maqam, we try different transpositions to find the best match. The system then ranks the maqams by their similarity scores and presents the most likely matches.
+        We compare the note pattern of the input melody with different maqams using a weighted accuracy score. For each maqam, we try different transpositions to find the best match.
         """)
 
         st.subheader("6. Maqam Library")
         st.write("""
-        Our system includes a library of common Middle Eastern maqams, including:
+        Our system includes common Middle Eastern maqams:
         
-        - **Ajam**: Closely resembles the Western major scale without quarter tones, making it accessible to musicians trained in Western music.
-        - **Rast**: Similar to the Western major scale but with a neutral third (between major and minor).
-        - **Nahawand**: Similar to the Western minor scale with a distinctive melancholic quality.
-        - **Hijaz**: Features an augmented second between the second and third degrees, giving it a distinctive Middle Eastern sound.
-        - **Kurd**: Similar to the Western Phrygian mode with a flattened second degree.
-        - **Bayati**: Features a neutral second degree (between major and minor), one of the most common maqams in Arabic music.
-        - **Saba**: Features a diminished fourth, giving it a very distinctive sound.
-        - **Siga**: Features neutral seconds and thirds, giving it a distinctive Middle Eastern sound.
-        
-        The library can be expanded to include additional maqams as needed.
-        """)
-
-        st.write("""
-        This approach allows us to accurately identify maqams from singing or humming, even with variations in pitch, tempo, and ornamentation that are common in Middle Eastern music performance.
+        - **Ajam**: Similar to Western major scale
+        - **Rast**: Similar to major scale but with a neutral third
+        - **Nahawand**: Similar to Western minor scale
+        - **Hijaz**: Features an augmented second between second and third degrees
+        - **Kurd**: Similar to Western Phrygian mode
+        - **Bayati**: Features a neutral second degree
+        - **Saba**: Features a diminished fourth
+        - **Siga**: Features neutral seconds and thirds
         """)
 
                

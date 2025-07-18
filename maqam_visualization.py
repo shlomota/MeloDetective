@@ -371,14 +371,165 @@ def create_midi_player_widget(midi_file_path: str) -> None:
         # Try to import the required libraries
         import streamlit_pianoroll
         from fortepyan import MidiPiece
+        import mido
+        import tempfile
         
-        # Load the MIDI file using fortepyan
-        piece = MidiPiece.from_file(midi_file_path)
-        
-        # Display the piano roll
-        st.write("### Piano Roll Playback")
-        streamlit_pianoroll.from_fortepyan(piece)
-        
+        # First, try to load the MIDI file directly
+        try:
+            piece = MidiPiece.from_file(midi_file_path)
+            
+            # Display the piano roll
+            st.write("### Piano Roll Playback")
+            streamlit_pianoroll.from_fortepyan(piece)
+            return
+        except Exception as direct_load_error:
+            # If direct loading fails, try to normalize the MIDI file
+            try:
+                # Load the MIDI file using mido
+                midi_file = mido.MidiFile(midi_file_path)
+                
+                # Create a new MIDI file with normalized structure
+                # Use the same ticks_per_beat as the original to maintain timing
+                normalized_midi = mido.MidiFile(ticks_per_beat=midi_file.ticks_per_beat)
+                
+                # Add a track for metadata
+                meta_track = mido.MidiTrack()
+                normalized_midi.tracks.append(meta_track)
+                
+                # Add tempo information
+                meta_track.append(mido.MetaMessage('set_tempo', tempo=mido.bpm2tempo(120), time=0))
+                
+                # Add instrument information (Piano)
+                meta_track.append(mido.MetaMessage('track_name', name='Melody', time=0))
+                meta_track.append(mido.Message('program_change', program=0, time=0))
+                
+                # Create a track for notes
+                note_track = mido.MidiTrack()
+                normalized_midi.tracks.append(note_track)
+                
+                # Extract notes
+                notes = []
+                current_time = 0
+                active_notes = {}
+                
+                for track in midi_file.tracks:
+                    for msg in track:
+                        current_time += msg.time
+                        
+                        if msg.type == 'note_on' and msg.velocity > 0:
+                            # Note on - start of a note
+                            active_notes[msg.note] = {
+                                'onset': current_time,
+                                'velocity': msg.velocity
+                            }
+                        elif msg.type == 'note_off' or (msg.type == 'note_on' and msg.velocity == 0):
+                            # Note off - end of a note
+                            if msg.note in active_notes:
+                                onset = active_notes[msg.note]['onset']
+                                velocity = active_notes[msg.note]['velocity']
+                                
+                                notes.append({
+                                    'pitch': msg.note,
+                                    'onset': onset,
+                                    'offset': current_time,
+                                    'velocity': velocity
+                                })
+                                
+                                del active_notes[msg.note]
+                
+                # Sort notes by onset time
+                notes.sort(key=lambda x: x['onset'])
+                
+                # Add notes to the track
+                current_time = 0
+                for note in notes:
+                    # Calculate delta time in ticks (already in ticks, no need to multiply)
+                    delta_time = int(note['onset'] - current_time)
+                    if delta_time < 0:
+                        delta_time = 0
+                        
+                    # Add note_on message
+                    note_track.append(mido.Message('note_on', note=note['pitch'], velocity=note['velocity'], time=delta_time))
+                    
+                    # Update current time
+                    current_time = note['onset']
+                    
+                    # Calculate note duration in ticks (already in ticks, no need to multiply)
+                    duration = int(note['offset'] - note['onset'])
+                    if duration <= 0:
+                        duration = 1  # Ensure minimum duration
+                        
+                    # Add note_off message
+                    note_track.append(mido.Message('note_off', note=note['pitch'], velocity=0, time=duration))
+                    
+                    # Update current time
+                    current_time = note['offset']
+                
+                # Save the normalized MIDI file
+                with tempfile.NamedTemporaryFile(suffix=".mid", delete=False) as tmp_file:
+                    normalized_midi_path = tmp_file.name
+                
+                normalized_midi.save(normalized_midi_path)
+                
+                # Try to load the normalized MIDI file
+                piece = MidiPiece.from_file(normalized_midi_path)
+                
+                # Display the piano roll
+                st.write("### Piano Roll Playback")
+                streamlit_pianoroll.from_fortepyan(piece)
+                
+                # Clean up the temporary file
+                import os
+                os.unlink(normalized_midi_path)
+                
+            except Exception as normalize_error:
+                st.warning("Could not visualize MIDI file in piano roll format. Using simplified display instead.")
+                
+                # Create a simplified visualization
+                try:
+                    midi_file = mido.MidiFile(midi_file_path)
+                    
+                    # Extract note information
+                    notes = []
+                    for track in midi_file.tracks:
+                        current_time = 0
+                        for msg in track:
+                            current_time += msg.time
+                            if msg.type == 'note_on' and msg.velocity > 0:
+                                notes.append((current_time, msg.note))
+                    
+                    # Create a simple visualization
+                    if notes:
+                        import matplotlib.pyplot as plt
+                        import numpy as np
+                        
+                        # Extract times and pitches
+                        times = [note[0] for note in notes]
+                        pitches = [note[1] for note in notes]
+                        
+                        # Create the plot
+                        fig, ax = plt.subplots(figsize=(10, 4))
+                        ax.scatter(times, pitches, alpha=0.7, s=30)
+                        ax.set_xlabel('Time (ticks)')
+                        ax.set_ylabel('MIDI Note')
+                        ax.set_title('MIDI Notes Visualization')
+                        
+                        # Add piano keyboard on y-axis
+                        ax.set_yticks(range(min(pitches)-2, max(pitches)+3))
+                        ax.grid(True, axis='y', alpha=0.3)
+                        
+                        # Highlight black keys with gray background
+                        for note in range(21, 109):
+                            if note % 12 in [1, 3, 6, 8, 10]:  # Black keys
+                                ax.axhspan(note-0.5, note+0.5, color='lightgray', alpha=0.3)
+                        
+                        st.pyplot(fig)
+                    else:
+                        st.warning("No notes found in the MIDI file.")
+                
+                except Exception as simple_viz_error:
+                    st.error(f"Error creating simplified MIDI visualization: {simple_viz_error}")
+    
     except ImportError:
         st.error("Required libraries not found. Please install streamlit_pianoroll and fortepyan.")
         st.info("You can install them with: pip install streamlit_pianoroll fortepyan")
