@@ -259,31 +259,29 @@ def main():
         st.write("""
         We analyze the input to extract frequency information and detect notes, which are essential for identifying maqams.
         """)
-        st.write("***Note:*** *You can download the MIDI representation of your input using the \"Download MIDI\" button. While standard MIDI doesn't directly support quarter tones, we use pitch bend to approximate them.*")
+        st.write("***Note:*** *You can download the MIDI representation of your input using the \"Download MIDI\" button.*")
 
-        st.subheader("3. Note Normalization")
-        st.write("""
-        We normalize the note sequence by subtracting the median pitch, making the detection pitch-independent so it works for different vocal ranges and instruments.
-        """)
-
-        st.subheader("4. Pattern-Based Representation")
+        st.subheader("3. Note Distribution Analysis")
         st.write("""
         We analyze the distribution of notes in the melody, focusing on which notes are used most frequently. Each maqam has a characteristic pattern of notes.
-        
-        - **Note Distribution**: Shows which notes are used most frequently in the melody
-        - **Maqam Fingerprint**: Each maqam has a characteristic note pattern
-        - **Microtonal Support**: Recognition of microtonal intervals used in Middle Eastern music
         """)
         
         # Display the histogram image
         st.image("data/images/histogram.png", caption="Note Distribution: Input vs Nahawand Scale")
 
-        st.subheader("5. Maqam Matching")
+        st.subheader("4. Maqam Matching")
         st.write("""
-        We compare the note pattern of the input melody with different maqams using a weighted accuracy score. For each maqam, we try different transpositions to find the best match.
+        We compare the input melody with different maqams using a weighted accuracy scoring function:
+        
+        - For each maqam, we try all 12 possible semitone shifts (transpositions)
+        - For each shift, we count how many input notes match the maqam scale
+        - The accuracy score is the ratio of matching notes to total notes
+        - We select the maqam and shift combination with the highest accuracy score
+        
+        This approach allows us to identify the maqam regardless of which note the melody starts on.
         """)
 
-        st.subheader("6. Maqam Library")
+        st.subheader("5. Maqam Library")
         st.write("""
         Our system includes common Middle Eastern maqams:
         

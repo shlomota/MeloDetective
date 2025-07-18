@@ -18,18 +18,22 @@ MeloDetective is a tool for detecting Middle Eastern musical modes (maqams) in a
 2. **Frequency Analysis**:
    We analyze the input to extract frequency information and detect notes, which are essential for identifying maqams.
 
-3. **Note Normalization**:
-   We normalize the note sequence by subtracting the median pitch, making the detection pitch-independent so it works for different vocal ranges and instruments.
-
-4. **Pattern-Based Representation**:
+3. **Note Distribution Analysis**:
    We analyze the distribution of notes in the melody, focusing on which notes are used most frequently. Each maqam has a characteristic pattern of notes.
 
    ![Note Distribution](data/images/histogram.png)
 
-5. **Maqam Matching**:
-   We compare the note pattern of the input melody with different maqams using a weighted accuracy score. For each maqam, we try different transpositions to find the best match.
+4. **Maqam Matching**:
+   We compare the input melody with different maqams using a weighted accuracy scoring function:
+   
+   - For each maqam, we try all 12 possible semitone shifts (transpositions)
+   - For each shift, we count how many input notes match the maqam scale
+   - The accuracy score is the ratio of matching notes to total notes
+   - We select the maqam and shift combination with the highest accuracy score
+   
+   This approach allows us to identify the maqam regardless of which note the melody starts on.
 
-6. **Maqam Library**:
+5. **Maqam Library**:
    Our system includes common Middle Eastern maqams:
    - **Ajam**: Similar to Western major scale
    - **Rast**: Similar to major scale but with a neutral third
