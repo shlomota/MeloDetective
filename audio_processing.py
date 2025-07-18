@@ -14,7 +14,7 @@ import streamlit as st
 import consts
 from consts import LIBRARY_DIR, MIDIS_DIR, METADATA_DIR
 from frequency_analysis import extract_note_sequence, create_midi_from_notes
-from maqam_definitions import detect_maqam
+from maqam_analysis import detect_maqam
 from maqam_visualization import display_maqam_results_streamlit, create_midi_player_widget
 
     
