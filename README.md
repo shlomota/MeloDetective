@@ -1,59 +1,63 @@
-# MeloDetective: Tracing Origins Of Tunes
-
-## Demo
-
-Check out the live demo of MeloDetective at [carlebot.us](http://carlebot.us).
-
-
-![Screenshot](https://github.com/shlomota/CarleBot/assets/73965390/17536b40-8fee-462c-b6da-7dc610193e61)
+# MeloDetective: Maqam Detection
 
 ## Overview
 
-MeloDetective is a tool for locating tunes in audio recordings. It leverages advanced audio processing algorithms and techniques to analyze and match melodies. This project uses a combination of Demucs, the Melodia algorithm, and Dynamic Time Warping (DTW) to achieve accurate results.
+MeloDetective is a tool for detecting Middle Eastern musical modes (maqams) in audio recordings. It leverages advanced audio processing algorithms and techniques to analyze melodies and identify the most likely maqam.
+
+![Screenshot](https://github.com/shlomota/CarleBot/assets/73965390/17536b40-8fee-462c-b6da-7dc610193e61)
 
 ## How It Works
 
 ### Step-by-Step Process
 
-1. **Extract Vocals**:
-    - **Demucs**: MeloDetective uses [Demucs](https://github.com/facebookresearch/demucs) to separate vocals from the accompaniment in an audio recording. Demucs is a state-of-the-art music source separation tool.
+1. **Enhanced Frequency Analysis**:
+   The first step involves analyzing the audio input to extract frequency information with high precision. We use advanced signal processing techniques to detect notes, which are essential for accurately identifying Middle Eastern musical modes (maqams).
 
-2. **Convert to MIDI**:
-    - **Melodia Algorithm**: The extracted vocal track is processed using the [Melodia](https://github.com/justinsalamon/audio_to_midi_melodia) algorithm to convert the melody to a MIDI file. This algorithm gave me the most stable results for converting singing to midi. Some other options include [Basic-Pitch](https://github.com/spotify/basic-pitch) [YIN](https://github.com/brentspell/torch-yin) and more.
+2. **Note Extraction**:
+   The extracted frequencies are converted into a sequence of notes. The system can detect both standard Western notes and the microtonal intervals that are characteristic of maqams.
 
-3. **Split into Overlapping Chunks**:
-    - The MIDI file is split into overlapping chunks to facilitate detailed analysis. Each chunk is normalized to make it key-agnostic, allowing for more robust matching.
+3. **Note Normalization**:
+   To ensure that the maqam detection works regardless of the absolute pitch you start on, we normalize the note sequence by subtracting the median pitch. This makes the detection pitch-independent, so it works for different vocal ranges and instruments.
 
-4. **Find Matches with DTW**:
-    - **Dynamic Time Warping (DTW)**: MeloDetective uses an adaptation of DTW to compare the query MIDI chunks with the reference library. DTW is an algorithm used to measure similarity between two time series sequences, which can vary in speed. This makes it ideal for matching melodies that might have tempo variations.
+4. **Pattern-Based Representation**:
+   We analyze the distribution of notes in the melody, focusing on which notes are used most frequently. Each maqam has a characteristic pattern of notes that helps identify it.
 
-## High-Level View
+5. **Maqam Matching**:
+   We compare the note pattern of the input melody with the characteristic patterns of different maqams using a weighted accuracy score. This measures how well the notes in the input melody match the notes in each maqam scale, regardless of the absolute starting pitch.
 
-1. **Reference Preparation**: Prepare a library of reference MIDI files using Demucs and the Melodia algorithm. This step involves extracting vocals from songs and converting these vocal tracks into MIDI format.
+   For each maqam, we try different transpositions to find the best match. The system then ranks the maqams by their similarity scores and presents the most likely matches.
 
-2. **Query Processing**: When a new audio query is received, it undergoes the same processing steps as the reference preparation. The query is separated into vocals, converted to MIDI, and split into chunks.
+6. **Maqam Library**:
+   Our system includes a library of common Middle Eastern maqams, including:
+   - **Ajam**: Closely resembles the Western major scale
+   - **Rast**: Similar to the Western major scale but with a neutral third
+   - **Nahawand**: Similar to the Western minor scale
+   - **Hijaz**: Features an augmented second between the second and third degrees
+   - **Kurd**: Similar to the Western Phrygian mode
+   - **Bayati**: Features a neutral second degree
+   - **Saba**: Features a diminished fourth
+   - **Siga**: Features neutral seconds and thirds
 
-3. **Matching**: Each chunk of the query is compared against the reference library using DTW. This comparison identifies the closest matching melodies in the reference library.
-
-4. **Results**: The best matches are presented to the user, showing which segments of the query correspond to known tunes.
+   The library can be expanded to include additional maqams as needed.
 
 ## Directory Structure
 
 - **app.py**: Main application script for running the MeloDetective web interface.
 - **audio_processing.py**: Contains functions for processing audio files.
-- **audio_to_midi_melodia**: Directory containing scripts for running the Melodia algorithm (Python 2 required).
-- **midi_chunk_processor.py**: Script for matching MIDI files using the library.
-- **data/**: Directory for storing sample queries, library files, and metadata.
-- **logs/**: Directory for storing log files.
-- **utils.py**: Utility functions used across the project.
+- **maqam_core.py**: Core functionality for working with maqams.
+- **maqam_constants.py**: Constants defining maqam scales and intervals.
+- **maqam_definitions.py**: Detailed definitions of maqams.
+- **maqam_analysis.py**: Functions for analyzing and detecting maqams.
+- **maqam_visualization.py**: Tools for visualizing maqam detection results.
+- **frequency_analysis.py**: Functions for analyzing frequencies in audio.
+- **data/**: Directory for storing sample queries and library files.
 - **requirements.txt**: Dependencies required for running MeloDetective.
-- **youtube_search.py**: Script for fetching metadata and downloading YouTube audio.
 
 ## Installation
 
 1. **Clone the Repository**:
     ```bash
-    git clone https://github.com/yourusername/MeloDetective.git
+    git clone https://github.com/shlomota/MeloDetective.git -b maqam_detection
     cd MeloDetective
     ```
 
@@ -62,10 +66,7 @@ MeloDetective is a tool for locating tunes in audio recordings. It leverages adv
     pip install -r requirements.txt
     ```
 
-3. **Setup Melodia**:
-    - Ensure Python 2 is installed and run the `audio_to_midi_melodia` script using Python 2.
-
-4. **Run the Application**:
+3. **Run the Application**:
     ```bash
     streamlit run app.py
     ```

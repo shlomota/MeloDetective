@@ -147,7 +147,7 @@ def process_audio(audio_file_path):
         status_text = st.empty()
         
         # Extract notes with quarter tone precision using our enhanced frequency analysis
-        status_text.info("Extracting notes with quarter tone precision...")
+        status_text.info("Extract notes...")
         progress_bar.progress(10)
         
         notes, times = extract_note_sequence(audio_file_path)

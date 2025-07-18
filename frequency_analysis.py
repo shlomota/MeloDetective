@@ -56,7 +56,7 @@ def extract_frequencies(audio_file: str, sr: int = DEFAULT_SR) -> Tuple[np.ndarr
         times = librosa.times_like(f0, sr=sr, hop_length=HOP_LENGTH)
         
         # Filter out unvoiced frames and low confidence detections
-        confidence_threshold = 0.5
+        confidence_threshold = 0.4
         mask = (voiced_flag) & (voiced_probs >= confidence_threshold)
         
         frequencies = f0[mask]
