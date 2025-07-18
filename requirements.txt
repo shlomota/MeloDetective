@@ -12,3 +12,5 @@ streamlit
 pydub
 midiutil
 streamlit-mic-recorder
+fortepyan
+streamlit-pianoroll
