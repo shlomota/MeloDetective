@@ -193,7 +193,7 @@ def calculate_maqam_accuracy_score(input_notes: List[float], maqam_scale: List[i
     return accuracy
 
 
-def detect_maqam(notes: List[float], transposition_range: Tuple[int, int] = (-12, 13)) -> List[Tuple[str, float, int, float, int]]:
+def detect_maqam(notes: List[float], transposition_range: Tuple[int, int] = (-12, 13), use_semitones: bool = True) -> List[Tuple[str, float, int, float, int]]:
     """
     Detect the most likely maqam from a sequence of notes using absolute note positions.
     

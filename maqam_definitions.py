@@ -18,6 +18,7 @@ The module provides:
 
 import numpy as np
 from typing import Dict, List, Tuple, Optional
+from maqam_constants import MAQAM_SEMITONE_POSITIONS
 
 # Try to import scipy, but provide a fallback if not available
 try:
@@ -46,6 +47,9 @@ class Maqam:
         self.intervals = intervals  # Original intervals in quarter tones
         self.description = description
         self.common_uses = common_uses
+        
+        # Get semitone positions from constants
+        self.semitone_positions = MAQAM_SEMITONE_POSITIONS.get(name.lower(), [])
         
         # Convert intervals to semitones for practical use
         self.semitone_intervals = [interval // 2 for interval in intervals]
@@ -337,82 +341,6 @@ def _cosine_similarity_fallback(v1: np.ndarray, v2: np.ndarray) -> float:
     
     return dot_product / (norm_v1 * norm_v2)
 
-def calculate_maqam_accuracy_score(input_notes: List[float], maqam_scale: List[int], use_semitones: bool = True, 
-                              is_nahawand: bool = False, is_shift_9: bool = False) -> float:
-    """
-    Calculate an accuracy score based on how many input notes match notes in the maqam scale.
-    This function directly compares the actual notes without normalization.
-    Score is weighted by amplitude in the histogram.
-    
-    Args:
-        input_notes: List of input note values
-        maqam_scale: List of note values in the maqam scale
-        use_semitones: Whether to use semitones (half-tones) for matching (default: True)
-        is_nahawand: Whether this is for Nahawand maqam (for debug printing)
-        is_shift_9: Whether this is for shift 9 (for debug printing)
-        
-    Returns:
-        Accuracy score (0-1, higher is better)
-    """
-    if len(input_notes) == 0 or len(maqam_scale) == 0:
-        return 0.0
-    
-    # Always quantize notes to semitones for practical matching
-    input_notes_semitones = [round(note / 2) * 2 for note in input_notes]
-    maqam_scale_semitones = [round(note / 2) * 2 for note in maqam_scale]
-    
-    # Convert to MIDI note numbers for easier comparison
-    input_midi_notes = [int(round(note / 2)) for note in input_notes_semitones]
-    maqam_midi_notes = [int(round(note / 2)) for note in maqam_scale_semitones]
-    
-    # Create a set of the maqam scale notes for efficient lookup
-    maqam_notes_set = set(maqam_midi_notes)
-    
-    # For debugging, also track normalized notes
-    maqam_notes_normalized_set = set([note % 12 for note in maqam_midi_notes])
-    
-    # Print debug info only for Nahawand at shift 9
-    debug_print = is_nahawand and is_shift_9
-    
-    if debug_print:
-        print(f"Maqam notes set (normalized): {sorted(list(maqam_notes_normalized_set))}")
-        print(f"Maqam notes set (absolute, first 20): {sorted(list(maqam_notes_set))[:20]}")
-    
-    # Count occurrences of each note in the input (weighted by amplitude)
-    note_counts = {}
-    
-    for note in input_midi_notes:
-        if note in note_counts:
-            note_counts[note] += 1
-        else:
-            note_counts[note] = 1
-    
-    # Print input notes for debugging
-    if debug_print:
-        print(f"Input notes (absolute): {sorted(list(note_counts.keys()))}")
-    
-    # Count matching notes (weighted by amplitude)
-    matching_notes = 0
-    total_notes = len(input_midi_notes)
-    
-    for note, count in note_counts.items():
-        if note in maqam_notes_set:
-            matching_notes += count
-            if debug_print:
-                print(f"Note {note} matched in maqam scale, count: {count}")
-        elif debug_print:
-            print(f"Note {note} not found in maqam scale, count: {count}")
-    
-    # Calculate the accuracy score - ratio of matching notes to total notes, weighted by amplitude
-    accuracy = matching_notes / total_notes if total_notes > 0 else 0.0
-    
-    # Print detailed scores for debugging
-    if debug_print:
-        print(f"Matching notes: {matching_notes}/{total_notes}, Accuracy: {accuracy:.4f}")
-    
-    return accuracy
-
-
 def calculate_maqam_accuracy_score(input_notes: List[float], maqam_semitone_positions: List[int], 
                                  shift: int = 0, is_nahawand: bool = False, is_shift_9: bool = False) -> float:
     """
@@ -512,47 +440,8 @@ def detect_maqam(notes: List[float], transposition_range: Tuple[int, int] = (-12
     # Compare with each maqam
     results = []
     for maqam_name, maqam in MAQAMS.items():
-        # Define the semitone positions for each maqam
-        if maqam_name == "nahawand":
-            # Nahawand corresponds to the natural minor scale: [0, 2, 3, 5, 7, 8, 10, 12] in semitones
-            semitone_positions = [0, 2, 3, 5, 7, 8, 10]
-        elif maqam_name == "ajam":
-            # Ajam corresponds to the major scale: [0, 2, 4, 5, 7, 9, 11, 12] in semitones
-            semitone_positions = [0, 2, 4, 5, 7, 9, 11]
-        elif maqam_name == "rast":
-            # Rast with neutral third: [0, 2, 3.5, 5, 7, 9, 10.5, 12] in semitones
-            # Approximated to: [0, 2, 4, 5, 7, 9, 11, 12] for Western ears
-            semitone_positions = [0, 2, 4, 5, 7, 9, 11]
-        elif maqam_name == "hijaz":
-            # Hijaz with augmented second: [0, 1, 4, 5, 7, 8, 10, 12] in semitones
-            semitone_positions = [0, 1, 4, 5, 7, 8, 10]
-        elif maqam_name == "kurd":
-            # Kurd (Phrygian): [0, 1, 3, 5, 7, 8, 10, 12] in semitones
-            semitone_positions = [0, 1, 3, 5, 7, 8, 10]
-        elif maqam_name == "bayati":
-            # Bayati with neutral second: [0, 1.5, 3, 5, 7, 9, 10.5, 12] in semitones
-            # Approximated to: [0, 2, 3, 5, 7, 9, 10, 12] for Western ears
-            semitone_positions = [0, 2, 3, 5, 7, 9, 10]
-        elif maqam_name == "saba":
-            # Saba with diminished fourth: [0, 1.5, 3, 4, 7, 8, 10, 12] in semitones
-            # Approximated to: [0, 2, 3, 4, 7, 8, 10, 12] for Western ears
-            semitone_positions = [0, 2, 3, 4, 7, 8, 10]
-        elif maqam_name == "siga":
-            # Siga with neutral seconds and thirds: [0, 1.5, 3.5, 5, 7, 8.5, 10.5, 12] in semitones
-            # Approximated to: [0, 2, 4, 5, 7, 9, 11, 12] for Western ears
-            semitone_positions = [0, 2, 4, 5, 7, 9, 11]
-        else:
-            # For other maqams, calculate from intervals
-            semitone_positions = []
-            current_pos = 0
-            
-            # Convert quarter tone intervals to semitone positions
-            for i, interval in enumerate(maqam.intervals):
-                semitone_positions.append(current_pos // 2)  # Convert to semitones
-                current_pos += interval
-            
-            # Remove the last position (octave) to avoid duplicates
-            semitone_positions = semitone_positions[:-1]
+        # Get the semitone positions from the constants
+        semitone_positions = MAQAM_SEMITONE_POSITIONS.get(maqam_name.lower(), [])
         
         # Try different transpositions (shifts)
         best_score = 0

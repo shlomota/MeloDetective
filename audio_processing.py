@@ -46,7 +46,7 @@ def convert_to_midi(audio_file, midi_file):
     subprocess.run(cmd, check=True, env=env)
     #subprocess.run(cmd, check=True)
 
-def trim_audio(audio_segment, duration_ms=20000):
+def trim_audio(audio_segment, duration_ms=40000):
     """Trim the audio to the specified duration in milliseconds."""
     return audio_segment[:duration_ms]
 

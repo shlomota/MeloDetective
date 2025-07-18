@@ -84,13 +84,18 @@ def load_sample_queries():
     
     # Get files from the directory
     if os.path.exists(SAMPLE_QUERIES_DIR) and os.listdir(SAMPLE_QUERIES_DIR):
-        sample_queries = [f for f in get_sorted_files_by_mod_time(SAMPLE_QUERIES_DIR) 
-                         if f.endswith(('.wav', '.mp3', '.ogg'))]
+        # Include both audio and MIDI files
+        sample_queries = [f for f in os.listdir(SAMPLE_QUERIES_DIR) 
+                         if f.endswith(('.wav', '.mp3', '.ogg', '.mid', '.midi'))]
+        
+        # Sort alphabetically
+        sample_queries.sort()
+        
         if sample_queries:
             sample_queries_display = ["Select your query"] + [remove_file_extension(file) for file in sample_queries]
             return sample_queries, sample_queries_display
     
-    # Return empty list if no audio files found
+    # Return empty list if no audio or MIDI files found
     return [], ["No sample queries available"]
 
 def main():
@@ -110,25 +115,33 @@ def main():
         # Only process if a query is selected and sample queries exist
         if selected_query != "Select your query" and selected_query != "No sample queries available" and sample_queries:
             try:
-                query_path = os.path.join(SAMPLE_QUERIES_DIR, sample_queries[sample_queries_display.index(selected_query) - 1])
+                file_index = sample_queries_display.index(selected_query) - 1
+                file_name = sample_queries[file_index]
+                query_path = os.path.join(SAMPLE_QUERIES_DIR, file_name)
                 st.write(f"Processing sample query: {selected_query}")
                 
-                audio = AudioSegment.from_file(query_path)
-                audio = trim_audio(audio)  # Trim to 20 seconds
-                
-                # Convert the audio to a format Streamlit can play
-                buffer = io.BytesIO()
-                audio.export(buffer, format="wav")
-                st.audio(buffer.getvalue(), format="audio/wav")
-                
-                # Process the audio for maqam detection
-                process_audio(query_path)
+                # Check if the file is a MIDI file
+                if file_name.lower().endswith(('.mid', '.midi')):
+                    # Process the MIDI file directly
+                    process_midi_file(query_path)
+                else:
+                    # Process audio file
+                    audio = AudioSegment.from_file(query_path)
+                    audio = trim_audio(audio)  # Trim to 20 seconds
+                    
+                    # Convert the audio to a format Streamlit can play
+                    buffer = io.BytesIO()
+                    audio.export(buffer, format="wav")
+                    st.audio(buffer.getvalue(), format="audio/wav")
+                    
+                    # Process the audio for maqam detection
+                    process_audio(query_path)
             except Exception as e:
                 print(traceback.format_exc())
                 print(e)
                 st.error(f"Error processing sample query: {e}")
         elif selected_query == "No sample queries available":
-            st.info("No sample audio files found. Please upload an audio file or record using the microphone.")
+            st.info("No sample audio or MIDI files found. Please upload a file or record using the microphone.")
 
     with tab2:
         st.write("Record 20 seconds of audio directly:")

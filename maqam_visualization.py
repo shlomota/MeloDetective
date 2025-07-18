@@ -183,23 +183,18 @@ def visualize_maqam_comparison(input_notes: List[float], maqam_name: str, shift:
     min_note = min(midi_notes)
     max_note = max(midi_notes)
     
-    # Determine the appropriate starting note for visualization
-    # For Nahawand, we should start at A (MIDI note 69 % 12 = 9) when it's the detected maqam
-    is_nahawand = maqam_name.lower() == "nahawand"
+    # Calculate the maqam's root note based on the shift
+    maqam_root_index = shift % 12
     
-    # If this is Nahawand and shift is 9 (A), adjust the range to center around A
-    if is_nahawand and shift == 9:
-        # Find the nearest A to the starting_midi_note
-        octave = starting_midi_note // 12
-        a_note = 9 + (octave * 12)  # A in the same octave
-        
-        # Extend the range to show 3 octaves centered around A
-        range_min = a_note - 12  # One octave below
-        range_max = a_note + 24  # Two octaves above
-    else:
-        # For other maqams, use the original approach
-        range_min = starting_midi_note - 12  # One octave below
-        range_max = starting_midi_note + 24  # Two octaves above
+    # Find the octave of the starting note
+    octave = starting_midi_note // 12
+    
+    # Calculate the maqam's root note in the same octave as the starting note
+    maqam_root_note = maqam_root_index + (octave * 12)
+    
+    # Adjust the range to center around the maqam's root note
+    range_min = maqam_root_note - 12  # One octave below
+    range_max = maqam_root_note + 24  # Two octaves above
     
     # Ensure we include all input notes
     range_min = min(range_min, min_note)
@@ -281,16 +276,19 @@ def visualize_maqam_comparison(input_notes: List[float], maqam_name: str, shift:
     bars1 = ax.bar(x - width/2, input_hist, width, label='Input Notes', alpha=0.7, color='#1f77b4')
     bars2 = ax.bar(x + width/2, maqam_hist, width, label=f'{maqam.name} Scale', alpha=0.7, color='#ff7f0e')
 
-    # Highlight the starting note of the input melody
+    # Highlight both the starting note of the input melody and the maqam's root note
     starting_note_mod12 = (int(round(min(input_notes) / 2))) % 12
+    maqam_root_mod12 = shift % 12  # The maqam's root note is determined by the shift
+    
     for i, midi_note in enumerate(range(range_min, range_max + 1)):
-        if midi_note % 12 == starting_note_mod12:
-            # Make the starting note bars taller/more prominent
-            if i < len(input_hist) and input_hist[i] > 0:
-                bars1[i].set_color('#0066cc')  # Darker blue
-            if i < len(maqam_hist) and maqam_hist[i] > 0:
-                bars2[i].set_height(maqam_hist[i] * 1.3)  # 30% taller
-                bars2[i].set_color('#cc5500')  # Darker orange
+        # Highlight input melody starting note
+        if midi_note % 12 == starting_note_mod12 and i < len(input_hist) and input_hist[i] > 0:
+            bars1[i].set_color('#0066cc')  # Darker blue
+        
+        # Highlight maqam root note
+        if midi_note % 12 == maqam_root_mod12 and i < len(maqam_hist) and maqam_hist[i] > 0:
+            bars2[i].set_height(maqam_hist[i] * 1.3)  # 30% taller
+            bars2[i].set_color('#cc5500')  # Darker orange
     
     # Set x-axis labels
     ax.set_xticks(x)
@@ -510,16 +508,16 @@ def display_maqam_results_streamlit(input_notes: List[float], maqam_results: Lis
                     if maqam:
                         st.write(f"**{maqam.name} Scale:**")
                         scale_notes = []
-                        for interval in maqam.intervals:
-                            if interval == 4:
+                        for interval in maqam.p_intervals:
+                            if interval == 2:
                                 scale_notes.append("Whole step")
-                            elif interval == 3:
+                            elif interval == 1.5:
                                 scale_notes.append("3/4 step")
-                            elif interval == 2:
-                                scale_notes.append("Half step")
                             elif interval == 1:
+                                scale_notes.append("Half step")
+                            elif interval == 0.5:
                                 scale_notes.append("Quarter step")
                             else:
-                                scale_notes.append(f"{interval/4} steps")
+                                scale_notes.append(f"{interval} steps")
                         
                         st.write(" → ".join(scale_notes))
