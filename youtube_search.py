@@ -53,13 +53,13 @@ def fetch_metadata_and_download(query, output_dir):
     results = []
     try:
         if "list=" in query:
-            pl = Playlist(query)
+            pl = Playlist(query, use_oauth=True, allow_oauth_cache=True)
             for video in pl.videos:
                 info = _download_as_mp3(video, output_dir)
                 if info:
                     results.append(info)
         else:
-            yt = YouTube(query)
+            yt = YouTube(query, use_oauth=True, allow_oauth_cache=True)
             info = _download_as_mp3(yt, output_dir)
             if info:
                 results.append(info)
