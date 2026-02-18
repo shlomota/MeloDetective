@@ -1,81 +1,86 @@
-import hashlib
-import requests
-import yt_dlp
 import os
-from audio_processing import sanitize_filename
-from consts import *
 import logging
+import subprocess
 
-def replace_quotes(filename):
-    # Replace standard quotes with special quotes
-    return filename.replace('"', '＂').replace("'", '＇')
+try:
+    from pytubefix import YouTube, Playlist, Search
+except ImportError:
+    import sys
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "pytubefix", "-q"])
+    from pytubefix import YouTube, Playlist, Search
+
+from audio_processing import sanitize_filename
+
+
+def _download_as_mp3(yt: YouTube, output_dir: str) -> dict | None:
+    """Download a single YouTube video's audio as MP3, return metadata dict."""
+    try:
+        stream = yt.streams.get_audio_only()
+        if not stream:
+            logging.error(f"No audio stream found for {yt.title}")
+            return None
+
+        sanitized_title = sanitize_filename(yt.title)
+        mp3_path = os.path.join(output_dir, f"{sanitized_title}.mp3")
+
+        if not os.path.exists(mp3_path):
+            tmp_file = stream.download(output_path=output_dir, filename="__tmp_audio.mp4")
+            subprocess.run(
+                ["ffmpeg", "-y", "-i", tmp_file, "-q:a", "0", "-map", "a", mp3_path],
+                check=True, capture_output=True
+            )
+            os.remove(tmp_file)
+            logging.info(f"Downloaded: {sanitized_title}")
+        else:
+            logging.info(f"Already exists, skipping: {sanitized_title}")
+
+        return {
+            "title": yt.title,
+            "url": yt.watch_url,
+            "thumbnail": yt.thumbnail_url,
+        }
+    except Exception as e:
+        logging.error(f"Error downloading {yt.watch_url}: {e}")
+        return None
+
 
 def fetch_metadata_and_download(query, output_dir):
-    # Path to your cookies file
-    cookies_path = 'ytcookies.txt'
-    user_agent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+    """
+    Download audio from a YouTube URL or playlist as MP3.
+    Returns a list of dicts with 'title', 'url', and 'thumbnail' keys.
+    """
+    os.makedirs(output_dir, exist_ok=True)
+    results = []
+    try:
+        if "list=" in query:
+            pl = Playlist(query)
+            for video in pl.videos:
+                info = _download_as_mp3(video, output_dir)
+                if info:
+                    results.append(info)
+        else:
+            yt = YouTube(query)
+            info = _download_as_mp3(yt, output_dir)
+            if info:
+                results.append(info)
+    except Exception as e:
+        logging.error(f"Error in fetch_metadata_and_download: {e}")
+    return results
 
-    ydl_opts = {
-        'format': 'bestaudio/best',
-        'postprocessors': [{
-            'key': 'FFmpegExtractAudio',
-            'preferredcodec': 'mp3',
-            'preferredquality': '192',
-        }],
-        'outtmpl': f'{output_dir}/%(title)s.%(ext)s',
-        # Add cookies and user-agent
-        'cookiefile': cookies_path,
-        'http_headers': {
-            'User-Agent': user_agent
-        }
-    }
-
-
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info_dict = ydl.extract_info(query, download=True)
-        entries = info_dict.get('entries', [info_dict])  # Handle both single video and playlist
-        results = []
-
-        for entry in entries:
-            video_info = entry
-            video_url = video_info['webpage_url']
-            thumbnail_url = video_info['thumbnail']
-            video_title_orig = video_info['title']
-            video_title = sanitize_filename(video_title_orig)
-
-            original_filename = os.path.join(output_dir, f"{video_title_orig}.mp3")
-            sanitized_filename = os.path.join(output_dir, f"{video_title}.mp3")
-
-            logging.info("Original: %s" % (original_filename))
-            logging.info("Sanitized: %s" % (sanitized_filename))
-            replaced_filename = replace_quotes(original_filename)
-            if os.path.exists(original_filename):
-                logging.info("Renaming file %s to %s" % (original_filename, sanitized_filename))
-                os.rename(original_filename, sanitized_filename)
-            elif os.path.exists(replaced_filename):
-                logging.info("Renaming replaced file %s to %s" % (replaced_filename, sanitized_filename))
-                os.rename(replaced_filename, sanitized_filename)
-            result = {
-                'title': video_title,
-                'url': video_url,
-                'thumbnail': thumbnail_url
-            }
-            results.append(result)
-
-        return results
 
 def search_youtube(query):
-    ydl_opts = {
-        'format': 'bestaudio/best',
-        'postprocessors': [{
-            'key': 'FFmpegExtractAudio',
-            'preferredcodec': 'mp3',
-            'preferredquality': '192',
-        }],
-        'outtmpl': '/home/ubuntu/MeloDetective/data/library/%(title)s.%(ext)s',
-    }
-    
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        results = ydl.extract_info(f"ytsearch:{query}", download=False)
-        return results['entries'][0] if 'entries' in results else None
-
+    """
+    Search YouTube for a query and return the top result's info,
+    or None if nothing found.
+    """
+    try:
+        results = Search(query)
+        if results.videos:
+            top = results.videos[0]
+            return {
+                "webpage_url": top.watch_url,
+                "thumbnail": top.thumbnail_url,
+            }
+    except Exception as e:
+        logging.error(f"YouTube search error: {e}")
+    return None

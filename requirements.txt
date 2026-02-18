@@ -9,3 +9,4 @@ streamlit
 pydub
 midiutil
 streamlit-mic-recorder
+pytubefix
